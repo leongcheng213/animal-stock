@@ -263,6 +263,23 @@ class TestResolver(unittest.TestCase):
         self.assertFalse(r["oversold"])
         self.assertEqual(r["blamedId"], "p1")
 
+    def test_noring_lifecycle(self):
+        s = _mkstate([{"id": "s1", "halves": [{"animal": "toucan", "count": 2}, {"animal": "toucan", "count": 1}]},
+                      {"id": "s2", "halves": [{"animal": "fox", "count": 1}, {"animal": "fox", "count": 1}]}],
+                     [("toucan", 1, "p1")])
+        s["noRingFor"] = "p2"
+        s["noRingBy"] = "p1"
+        v = redact_for_viewer(s, "p2")
+        self.assertEqual(v["noRingFor"], "p2")
+        self.assertEqual(v["noRingBy"], "p1")
+        resolve_bell(s, "p2")  # round over clears the block
+        self.assertIsNone(s["noRingFor"])
+        self.assertIsNone(s["noRingBy"])
+        s["noRingFor"] = "p1"
+        setup_round(s)  # new round clears the block
+        self.assertIsNone(s["noRingFor"])
+        self.assertIsNone(s["noRingBy"])
+
     def test_hippo_swap_changes_checked_animal(self):
         # A swapped last row is judged by its NEW animal.
         s = self._mkstate_last(
@@ -410,6 +427,17 @@ class TestBotLogic(unittest.TestCase):
         card = {"id": "c", "halves": [{"animal": "toucan", "count": 1},
                                       {"animal": "elephant", "count": 2}]}
         self.assertEqual(_ai_pick_half(st, "bot", card), 0)
+
+    def test_bot_obeys_ring_block(self):
+        from server import ai_should_ring
+        st = self._botstate()
+        self._order(st, "toucan", 3)
+        self._order(st, "toucan", 3)
+        self._order(st, "toucan", 1)
+        self.assertTrue(ai_should_ring(st, "bot"))
+        st["noRingFor"] = "bot"
+        st["noRingBy"] = "hum"
+        self.assertFalse(ai_should_ring(st, "bot"))
 
     def test_pick_flip_biggest(self):
         from server import _ai_pick_flip

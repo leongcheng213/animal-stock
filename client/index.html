@@ -68,13 +68,14 @@
 
     <details class="how">
       <summary>How to play (30 sec)</summary>
+      <button id="btn-tour" class="btn primary big">▶ Guided picture tour</button>
       <ol>
         <li>Everyone sees <b>each other's</b> stock card — but <b>not their own</b>.</li>
         <li>On your turn: <b>Take an order</b> (draw, pick one half) or <b>Ring the bell</b> 🔔.</li>
         <li>Bell = accuse the table of over-selling. Only the <b>last order's animal</b> is checked (host can switch to all-animals in the lobby).</li>
         <li>Oversold → whoever placed the <b>last order</b> gets a token. Else the <b>ringer</b> gets it.</li>
         <li>Tokens go 1,2,3… First to <b>7+ total loses</b>. Fewest wins.</li>
-        <li>Hippos: drawn = tap an order to <b>swap</b> its picked/unpicked halves (the Hippo parks beside that row). In stock = Bo cancels all 3s, Pip cancels all Fox, Dozy naps. Tap a Hippo stock card to see what that sibling does.</li>
+        <li>Hippos: drawn = tap an order to <b>swap</b> its picked/unpicked halves (the Hippo parks beside that row). Nobody may ring on the turn right after a Hippo — hover the bell for the rule. In stock = Bo cancels all 3s, Pip cancels all Fox, Dozy naps. Tap a Hippo stock card to see what that sibling does.</li>
       </ol>
     </details>
     <p id="join-err" class="err"></p>
@@ -117,7 +118,7 @@
     </header>
 
     <div id="table-wrap">
-      <button id="btn-ring" class="bellbtn" title="Ring the bell">🔔</button>
+      <button id="btn-ring" class="bellbtn">🔔</button>
       <div id="hud-status" class="status overlay">…</div>
 
       <div class="board-label onfelt stocks-label">STOCKS — everyone else's (yours is face-down)</div>
@@ -229,8 +230,19 @@
 
 <div id="toast" class="toast hidden"></div>
 
+<!-- guided picture tour -->
+<div id="modal-tour" class="modal hidden tour">
+  <div class="tour-box">
+    <div class="tour-top"><span id="tour-count"></span><button id="btn-tour-x" class="iconbtn">✕</button></div>
+    <div id="tour-spot"></div>
+    <div class="tour-note"><h3 id="tour-title"></h3><p id="tour-body"></p></div>
+    <div id="tour-dots"></div>
+    <button id="btn-tour-go" class="btn primary big hidden">Got it — play!</button>
+  </div>
+</div>
+
 <!-- bump ?v= every time client JS changes so phones refetch it -->
-<script src="animals.js?v=12"></script>
-<script type="module" src="app.js?v=12"></script>
+<script src="animals.js?v=13"></script>
+<script type="module" src="app.js?v=13"></script>
 </body>
 </html>

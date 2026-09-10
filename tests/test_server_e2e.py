@@ -197,6 +197,29 @@ def main():
             s1, _ = a.drain_states()
             s2, _ = b.drain_states()
             return s1 or s2
+
+        def do_take(who):
+            """Take + resolve one draw. Returns the drawn card."""
+            who.send({"type": "TAKE_ORDER"})
+            card = None
+            for _ in range(6):
+                m = who.next_of(("DRAWN", "STATE", "ERROR"))
+                if m["type"] == "DRAWN":
+                    card = m["card"]
+                    break
+                if m["type"] == "ERROR":
+                    raise AssertionError(f"take rejected: {m}")
+            assert card is not None, "never received DRAWN"
+            time.sleep(0.2)
+            return card
+
+        def resolve_draw(who, card, cur):
+            if "hippo" in card:
+                face = [i for i, o in enumerate(cur["orders"]) if o["faceUp"]]
+                who.send({"type": "HIPPO_FLIP", "orderIndex": face[0] if face else None})
+            else:
+                who.send({"type": "CHOOSE_HALF", "halfIndex": 0})
+            time.sleep(0.3)
         # figure out current active again
         saw_discarded = False
         saw_results = False
@@ -249,20 +272,43 @@ def main():
                     assert o["discarded"]["animal"] in (
                         "toucan", "fox", "leopard", "elephant")
                     saw_discarded = True
-            ap = next(p for p in st["players"] if p["seat"] == st["activeSeat"])
-            who = a if ap["id"] == pid_a else b
-            a.drain_states(); b.drain_states()
-            who.send({"type": "RING_BELL"})
+            # ring with active player (must have a face-up order by now).
+            # a fresh Hippo blocks the bell: take once to lift it, then ring.
             got_ring_error = None
-            for _ in range(4):
-                m = who.next_of(("STATE", "ERROR"))
-                if m["type"] == "ERROR":
-                    got_ring_error = m
+            for attempt in range(3):
+                fresh = sync()
+                if fresh:
+                    st = fresh
+                if st["phase"] != "playing":
                     break
-                if m["type"] == "STATE" and m["state"]["phase"] in ("reveal", "gameOver"):
-                    st = m["state"]
+                ap = next(p for p in st["players"] if p["seat"] == st["activeSeat"])
+                who = a if ap["id"] == pid_a else b
+                a.drain_states(); b.drain_states()
+                who.send({"type": "RING_BELL"})
+                for _ in range(4):
+                    m = who.next_of(("STATE", "ERROR"))
+                    if m["type"] == "ERROR":
+                        got_ring_error = m
+                        break
+                    if m["type"] == "STATE" and m["state"]["phase"] in ("reveal", "gameOver"):
+                        st = m["state"]
+                        break
+                    # stale playing STATE — keep waiting
+                if got_ring_error is None:
                     break
-                # stale playing STATE — keep waiting
+                assert "Hippo" in got_ring_error["message"], got_ring_error
+                print(f"ring blocked by fresh Hippo (attempt {attempt + 1}), taking to lift it")
+                # rejected rings change nothing: still `who`'s turn
+                card = do_take(who)
+                fresh = sync()
+                if fresh:
+                    st = fresh
+                resolve_draw(who, card, st)
+                time.sleep(0.3)
+                fresh = sync()
+                if fresh:
+                    st = fresh
+                got_ring_error = None
             assert got_ring_error is None, f"RING_BELL rejected: {got_ring_error}"
             time.sleep(0.4)
             fresh = sync()
@@ -313,6 +359,98 @@ def main():
 
         assert saw_discarded, "no order carried its discarded half"
         assert saw_results, "never reached a final round (RESULTS flow untested)"
+
+        # ---- post-Hippo ring block: next player must take, not ring ----
+        fresh = sync()
+        if fresh:
+            st = fresh
+        if st["phase"] == "reveal":
+            a.send({"type": "NEXT_ROUND"})
+            time.sleep(0.5)
+            fresh = sync()
+            if fresh:
+                st = fresh
+        if st["phase"] == "gameOver":
+            a.send({"type": "RESTART"})
+            time.sleep(0.5)
+            fresh = sync()
+            if fresh:
+                st = fresh
+        assert st["phase"] == "playing", st["phase"]
+
+        # phase 1: guarantee a face-up order so the block error is unambiguous
+        for _ in range(10):
+            fresh = sync()
+            if fresh:
+                st = fresh
+            if sum(1 for o in st["orders"] if o["faceUp"]) >= 1:
+                break
+            ap = next(p for p in st["players"] if p["seat"] == st["activeSeat"])
+            card = do_take(a if ap["id"] == pid_a else b)
+            fresh = sync()
+            if fresh:
+                st = fresh
+            resolve_draw(a if ap["id"] == pid_a else b, card, st)
+        # phase 2: hunt a hippo draw (bounded; deck always holds 3)
+        drawer = other = None
+        for _ in range(30):
+            fresh = sync()
+            if fresh:
+                st = fresh
+            if st["phase"] == "reveal":
+                a.send({"type": "NEXT_ROUND"})  # deck-out edge; fresh deck
+                time.sleep(0.4)
+                continue
+            assert st["phase"] == "playing", st["phase"]
+            ap = next(p for p in st["players"] if p["seat"] == st["activeSeat"])
+            who = a if ap["id"] == pid_a else b
+            card = do_take(who)
+            if "hippo" in card:
+                drawer, other = who, (b if who is a else a)
+                drawer_pid = pid_a if who is a else pid_b
+                other_pid = pid_b if who is a else pid_a
+                break
+            fresh = sync()
+            if fresh:
+                st = fresh
+            resolve_draw(who, card, st)
+        assert drawer is not None, "never drew a hippo in 30 takes"
+        fresh = sync()
+        if fresh:
+            st = fresh
+        resolve_draw(drawer, card, st)  # flip; turn passes with the block set
+        time.sleep(0.4)
+        fresh = sync()
+        if fresh:
+            st = fresh
+        assert st.get("noRingFor") == other_pid, st.get("noRingFor")
+        assert st.get("noRingBy") == drawer_pid, st.get("noRingBy")
+        print(f"ring block set: {drawer_pid} flipped -> {other_pid} blocked")
+        # blocked ring is rejected with the Hippo reason
+        a.drain_states(); b.drain_states()
+        other.send({"type": "RING_BELL"})
+        errm = None
+        for _ in range(4):
+            m = other.next_of(("ERROR", "STATE"))
+            if m["type"] == "ERROR":
+                errm = m
+                break
+        assert errm is not None and "Hippo" in errm["message"], errm
+        print("blocked ring correctly rejected:", errm["message"])
+        # taking lifts the block; the next ring is judged on the merits
+        ap = next(p for p in st["players"] if p["seat"] == st["activeSeat"])
+        assert ap["id"] == other_pid, "turn should be with the blocked player"
+        card = do_take(other)
+        fresh = sync()
+        if fresh:
+            st = fresh
+        resolve_draw(other, card, st)
+        time.sleep(0.4)
+        fresh = sync()
+        if fresh:
+            st = fresh
+        assert not st.get("noRingFor") or "hippo" in card, st.get("noRingFor")
+        print("ring block lifted after taking")
 
         # ---- exit -> bot takes the seat, then a newcomer takes it back ----
         fresh = sync()

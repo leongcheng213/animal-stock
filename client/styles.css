@@ -273,3 +273,21 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 #rv-blame{font-size:16px;font-weight:800;margin:6px 0;}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:12px;z-index:99;font-size:15px;max-width:90vw;text-align:center;}
+/* guided picture tour: dark room, lit mock on top, note below — never overlapping */
+.modal.tour{align-items:center;justify-content:center;z-index:70;padding:14px;background:rgba(20,28,36,.92);}
+.tour-box{width:min(440px,94vw);max-height:94dvh;overflow-y:auto;background:var(--bg);
+  border-radius:20px;padding:14px 14px 18px;display:flex;flex-direction:column;gap:10px;}
+.tour-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;}
+#tour-spot{min-height:150px;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;
+  background:#E7D8BC;border-radius:14px;padding:12px;}
+#tour-spot .stocks,#tour-spot .halves{width:100%;}
+#tour-spot .takebtn{margin:0;}
+#tour-spot .bellbtn{position:static;}
+.tour-note h3{margin:0 0 6px;font-size:19px;}
+.tour-note p{margin:0;font-size:15px;line-height:1.55;}
+.tour-note{min-height:118px;}
+#tour-dots{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;}
+.tdot{width:8px;height:8px;border-radius:50%;background:#D8CFC0;}
+.tdot.on{background:var(--ink);}
+.orow.demo-last .pick{border-color:var(--accent);}
+#btn-tour{margin-bottom:10px;}

@@ -23,7 +23,8 @@ Protocol (JSON text frames):
         LEAVE mid-game turns your seat into a bot (game continues);
         JOIN mid-game takes over a bot seat. Reconnect with your playerId
         to reclaim a disconnected seat. ADD_BOTS fills lobby seats with
-        bots for solo play (host only).
+        bots for solo play (host only). A Hippo draw blocks the next
+        player's bell for one turn (RING_BELL rejected).
   S->C: WELCOME {playerId, room} | STATE {state: redacted, youId}
         | DRAWN {card} | ERROR {message} | PING
 """
@@ -251,7 +252,10 @@ def _faceup_tally(state):
 
 
 def ai_should_ring(state, pid):
-    """Ring only when provably oversold from visible info alone."""
+    """Ring only when provably oversold from visible info alone —
+    and never on a post-Hippo blocked turn."""
+    if state.get("noRingFor") == pid:
+        return False
     face = [o for o in state["orders"] if o["faceUp"]]
     if not face:
         return False
@@ -325,6 +329,18 @@ def _append_order(state, card, half, pid):
                             "discarded": {"animal": other["animal"],
                                           "count": other["count"]}})
     state["lastOrderBy"] = pid
+    # taking an order lifts your own post-Hippo ring block, if any
+    if state.get("noRingFor") == pid:
+        state["noRingFor"] = None
+        state["noRingBy"] = None
+
+
+def _block_ring_next(state, flipper_pid):
+    """After a Hippo resolves, the incoming player may not ring this turn."""
+    nxt = next((p for p in state["players"] if p["seat"] == state["activeSeat"]), None)
+    if nxt is not None:
+        state["noRingFor"] = nxt["id"]
+        state["noRingBy"] = flipper_pid
 
 
 def auto_play(room_code, reason="timeout", for_ai=False):
@@ -357,6 +373,7 @@ def auto_play(room_code, reason="timeout", for_ai=False):
                 state["pendingDraw"] = None
                 state["activeSeat"] = (state["activeSeat"] + 1) % len(state["players"])
                 reset_turn_timer(state)
+                _block_ring_next(state, pid)
                 maybe_schedule_ai(state)
             elif card:
                 _append_order(state, card, _ai_pick_half(state, pid, card), pid)
@@ -366,8 +383,8 @@ def auto_play(room_code, reason="timeout", for_ai=False):
                 maybe_schedule_ai(state)
             need_broadcast = True
         else:
-            # bots ring when they can prove an oversell; timed-out humans
-            # just take (never ring for them).
+            # bots ring when they can prove an oversell (never on a blocked
+            # turn); timed-out humans just take (never ring for them).
             face = [o for o in state["orders"] if o["faceUp"]]
             if for_ai and face and ai_should_ring(state, pid):
                 try:
@@ -400,6 +417,7 @@ def auto_play(room_code, reason="timeout", for_ai=False):
                         state["hippoDiscards"].append(cid)
                     state["activeSeat"] = (state["activeSeat"] + 1) % len(state["players"])
                     reset_turn_timer(state)
+                    _block_ring_next(state, pid)
                     maybe_schedule_ai(state)
                 else:
                     _append_order(state, card, _ai_pick_half(state, pid, card), pid)
@@ -691,14 +709,7 @@ def handle_message(conn, msg):
             if half not in (0, 1):
                 error_to(conn, "Pick half A or B.")
                 return
-            h = card["halves"][half]
-            other = card["halves"][1 - half]
-            state["orders"].append({"cardId": card["id"], "halfIndex": half,
-                                    "faceUp": True, "placedBy": pid,
-                                    "animal": h["animal"], "count": h["count"],
-                                    "discarded": {"animal": other["animal"],
-                                                  "count": other["count"]}})
-            state["lastOrderBy"] = pid
+            _append_order(state, card, half, pid)
             state["pendingDraw"] = None
             state["activeSeat"] = (state["activeSeat"] + 1) % len(state["players"])
             reset_turn_timer(state)
@@ -725,6 +736,7 @@ def handle_message(conn, msg):
                 state["pendingDraw"] = None
                 state["activeSeat"] = (state["activeSeat"] + 1) % len(state["players"])
                 reset_turn_timer(state)
+                _block_ring_next(state, pid)
                 maybe_schedule_ai(state)
             else:
                 if idx is None or idx not in face:
@@ -735,6 +747,7 @@ def handle_message(conn, msg):
                 state["pendingDraw"] = None
                 state["activeSeat"] = (state["activeSeat"] + 1) % len(state["players"])
                 reset_turn_timer(state)
+                _block_ring_next(state, pid)
                 maybe_schedule_ai(state)
         broadcast(room_code)
         return
@@ -750,6 +763,9 @@ def handle_message(conn, msg):
                 return
             if state.get("pendingDraw"):
                 error_to(conn, "Finish choosing first.")
+                return
+            if state.get("noRingFor") == pid:
+                error_to(conn, "Ring is blocked this turn - a Hippo was just played. Take an order.")
                 return
             face = [o for o in state["orders"] if o["faceUp"]]
             if not face:

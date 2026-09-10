@@ -1,5 +1,5 @@
 /* Animal Stock — mobile client: DOM UI + server intents, flat felt table. */
-const APP_BUILD = 12; // bump with ?v= in index.html on every client change
+const APP_BUILD = 13; // bump with ?v= in index.html on every client change
 let serverVer = 0;
 function paintBuildTag() {
   const el = $('buildtag');
@@ -171,6 +171,94 @@ $('btn-join').onclick = () => {
 };
 $('btn-start').onclick = () => send({ type: 'START' });
 
+// ---------- guided picture tour (inside How to play) ----------
+const ART = window.AnimalArt;
+const TOUR = [
+  { t: 'Goal of the game',
+    b: 'Everyone collects angry-manager tokens worth 1, then 2, then 3… The first player to reach <b>7+ total LOSES</b> — the lowest score wins.',
+    mock: `<div style="font-size:64px">🏆</div>` },
+  { t: 'Whose card is whose?',
+    b: 'Every stock card faces <b>everyone except its owner</b>. You see their animals — never your own 🙈. (2-player games add a shared spare card.)',
+    mock: `<div class="stocks">
+      <div class="stock"><div class="nm">Ann</div><div class="cd"><span class="halfchip">${ART.icon('toucan', 1, 20)}</span><span class="halfchip">${ART.icon('leopard', 2, 20)}</span></div></div>
+      <div class="stock"><div class="nm">Bo</div><div class="cd"><span class="halfchip">${ART.icon('fox', 1, 20)}</span><span class="halfchip">${ART.icon('toucan', 2, 20)}</span></div></div>
+      <div class="stock me"><div class="nm">You</div><div class="cd"><span style="font-size:40px">🙈</span></div></div>
+    </div>` },
+  { t: 'Take an order',
+    b: 'On your turn tap <b>TAKE</b>: draw a card and pick <b>ONE half</b>. Only that half becomes an order — the other half is discarded.',
+    mock: `<button class="takebtn" style="min-height:56px;font-size:17px"><span class="deckmini"></span><span>TAKE</span></button>
+    <div class="halves">
+      <div class="halfpick"><div>${ART.icon('toucan', 1, 44)}</div><div class="big">A — 1× toucan</div></div>
+      <div class="halfpick"><div>${ART.icon('leopard', 3, 44)}</div><div class="big">B — 3× leopard</div></div>
+    </div>` },
+  { t: 'The order board',
+    b: 'Picked halves pile up, newest at the bottom. The faded halves beside them are the discards — <b>they count for nothing</b>.',
+    mock: `<div class="orow"><div class="disc">${ART.icon('leopard', 3, 20)}</div><div class="pick">${ART.icon('toucan', 1, 26)}</div></div>
+    <div class="orow"><div class="disc">${ART.icon('toucan', 2, 20)}</div><div class="pick">${ART.icon('fox', 1, 26)}</div></div>` },
+  { t: 'The running tally',
+    b: 'Always-visible totals of face-up orders — your deduction aid. It <b>never includes hidden stocks</b>, so that part is up to you.',
+    mock: `<div class="draw-tally"><span class="dtchip">${ART.icon('toucan', 1, 20)}<b>3</b></span><span class="dtchip">${ART.icon('fox', 1, 20)}<b>2</b></span><span class="dtchip">${ART.icon('leopard', 1, 20)}<b>0</b></span><span class="dtchip">${ART.icon('elephant', 1, 20)}<b>1</b></span></div>` },
+  { t: 'Ring the bell 🔔',
+    b: 'On <b>YOUR turn only</b>, with at least 1 face-up order: accuse the table of overselling. Spot it on someone else\u2019s turn? You must wait for yours.',
+    mock: `<div style="font-size:64px">🔔</div>` },
+  { t: 'Only the last order is judged',
+    b: 'The bell checks <b>just the newest order\u2019s animal</b> against stock. Everything older is history. (Hosts can switch to all-animals.)',
+    mock: `<div class="orow"><div class="disc">${ART.icon('fox', 1, 20)}</div><div class="pick">${ART.icon('toucan', 2, 26)}</div></div>
+    <div class="orow demo-last"><div class="disc">${ART.icon('toucan', 1, 20)}</div><div class="pick">${ART.icon('fox', 3, 26)}</div></div>` },
+  { t: 'Who takes the token?',
+    b: 'Oversold → whoever placed the <b>last order</b> takes the token. Board was fine → <b>you, the ringer</b>, take it. The token-taker starts next round.',
+    mock: `<div class="tchips"><span class="tchip">⚡1</span><span class="tchip">⚡2</span><span class="ttotal">3</span></div>` },
+  { t: 'Hippo drawn = swap',
+    b: 'Drew a Hippo? Tap any face-up order to <b>swap its halves</b> — the unpicked side goes live. The Hippo parks beside that row. Empty board: it naps. Swapping can never blame you.',
+    mock: `<div class="orow"><div class="pick">${ART.icon('leopard', 3, 26)}</div><div class="disc">${ART.icon('toucan', 1, 20)}</div><div class="flipmarks"><span class="fmark">${ART.shape('hippo', 24, 'bo')}</span></div></div>` },
+  { t: 'Hippos hiding in stocks',
+    b: 'Revealed only when the bell rings: <b>BO</b> (red) cancels all 3-counts · <b>PIP</b> (purple) cancels all Fox · <b>DOZY</b> (grey) naps. Tap any Hippo in-game to re-read this.',
+    mock: `<div style="display:flex;gap:14px">${['bo', 'pip', 'dozy'].map(h => `<div style="text-align:center">${ART.shape('hippo', 54, h)}<div><b>${h.toUpperCase()}</b></div></div>`).join('')}</div>` },
+  { t: 'No ringing after Hippo',
+    b: 'The turn right after a Hippo draw <b>cannot ring</b> — the bell locks and you must take. Hover the bell anytime to see the rule.',
+    mock: `<div style="font-size:64px;filter:grayscale(1);opacity:.5">🔔</div><div style="font-size:40px">🚫</div>` },
+  { t: '15-second turns',
+    b: 'The frame around the active box drains clockwise from the top-right — red flicker under 5s. Timeout <b>auto-plays</b> for you, never a stall.',
+    mock: `<div style="width:150px;height:110px;border:4px solid #2E9E5B;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px">15s</div>` },
+  { t: 'Bots have your back',
+    b: 'Leave mid-game and a 🤖 bot plays your seat fairly — rejoin anytime to take it back. Or start <b>Vs bots</b> to practice solo.',
+    mock: `<div style="font-size:64px">🤖</div>` },
+  { t: 'You\u2019re ready!',
+    b: 'Lowest score wins, 7+ loses. Feeling brave? Ring early and often — fortune favours the sharp counter.',
+    mock: `<div style="font-size:64px">🃏</div>` },
+];
+let tourIdx = 0;
+function openTour() { tourIdx = 0; renderTour(); $('modal-tour').classList.remove('hidden'); }
+function closeTour() { $('modal-tour').classList.add('hidden'); }
+function renderTour() {
+  const s = TOUR[tourIdx];
+  const spot = $('tour-spot');
+  spot.innerHTML = s.mock || '';
+  spot.style.display = s.mock ? '' : 'none';
+  $('tour-title').textContent = s.t;
+  $('tour-body').innerHTML = s.b;
+  $('tour-count').textContent = (tourIdx + 1) + ' / ' + TOUR.length;
+  $('tour-dots').innerHTML = TOUR.map((_, k) => `<span class="tdot${k === tourIdx ? ' on' : ''}"></span>`).join('');
+  $('btn-tour-go').classList.toggle('hidden', tourIdx !== TOUR.length - 1);
+}
+$('btn-tour').onclick = () => openTour();
+$('btn-tour-x').onclick = (e) => { e.stopPropagation(); closeTour(); };
+$('btn-tour-go').onclick = (e) => { e.stopPropagation(); closeTour(); };
+$('modal-tour').addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  if (tourIdx < TOUR.length - 1) { tourIdx++; renderTour(); }
+  else closeTour();
+});
+// test hook (?tour=3): open the tour at a given slide
+try {
+  const ti = parseInt(new URLSearchParams(location.search).get('tour') || '', 10);
+  if (!isNaN(ti)) {
+    tourIdx = Math.max(0, Math.min(TOUR.length - 1, ti));
+    renderTour();
+    $('modal-tour').classList.remove('hidden');
+  }
+} catch (e) {}
+
 // ---------- first screen: friends vs bots ----------
 let playTab = 'friends', botGameSize = 3, pendingBotTotal = 0, pendingBotAt = 0;
 function setPlayTab(t) {
@@ -212,6 +300,7 @@ $('btn-leave2').onclick = () => { send({ type: 'LEAVE' }); $('modal-over').class
 
 // ---------- game actions ----------
 $('btn-take').onclick = () => send({ type: 'TAKE_ORDER' });
+attachNotePreview($('btn-ring'), bellNote);
 $('btn-ring').onclick = () => {
   const face = (state.orders || []).filter(o => o.faceUp);
   const last = face[face.length - 1];
@@ -370,6 +459,7 @@ function render() {
   let status;
   if (state.phase === 'playing') {
     if (state.activeChoosing) status = ap && ap.id === state.youId ? 'You drew — choose…' : `${ap ? ap.name : '?'} is choosing…`;
+    else if (ap && ap.id === state.youId && state.noRingFor === state.youId) status = 'YOUR turn — take an order (🔕 blocked by Hippo)';
     else status = ap && ap.id === state.youId ? 'YOUR turn — order or bell?' : `${ap ? ap.name : '?'}'s turn…`;
   } else if (state.phase === 'reveal') status = 'Manager has ruled!';
   else if (state.phase === 'gameOver') status = 'Game over!';
@@ -421,24 +511,40 @@ const HIPPO_INFO = {
 };
 let hippoHideT = 0, hippoOverlayMode = null, lastTouchT = 0;
 let lastDealKey = '', dealHideT = 0, dealTextT = 0;
-// shared hover/touch auto-preview for any hippo icon (stocks + row markers)
-function attachHippoNote(el, which) {
-  el.classList.add('hippo');
+// shared hover/touch auto-preview for tap-targets (hippos, bell)
+function attachNotePreview(el, showFn) {
   el.onmouseenter = () => {
     if (Date.now() - lastTouchT < 1200) return; // ignore emulated mouse
     clearTimeout(hippoHideT);
-    showHippo(which, '', 'note');
+    showFn();
   };
   el.onmouseleave = () => { if (hippoOverlayMode === 'note') hideHippo(); };
   el.ontouchstart = () => {
     lastTouchT = Date.now();
     clearTimeout(hippoHideT);
-    showHippo(which, '', 'note');
+    showFn();
   };
   el.ontouchend = () => {
     clearTimeout(hippoHideT);
     hippoHideT = setTimeout(hideHippo, 2000);
   };
+}
+function attachHippoNote(el, which) {
+  el.classList.add('hippo');
+  attachNotePreview(el, () => showHippo(which, '', 'note'));
+}
+function bellNote() {
+  const blocked = state && state.noRingFor === state.youId;
+  const by = state && state.noRingBy ? nameOf(state.noRingBy) : null;
+  showNote({
+    art: '<div style="font-size:110px;line-height:1">🔔</div>',
+    title: blocked ? 'RING BLOCKED' : 'THE BELL',
+    color: blocked ? '#FF3B5C' : '',
+    body: blocked
+      ? `${by || 'Someone'} just played a Hippo — you must take an order this turn. No ringing the flipper.`
+      : 'Ring to accuse the table of overselling. A wrong call takes the token — and nobody may ring on the turn right after a Hippo.',
+    sub: '',
+  }, 'note');
 }
 let dealTimers = [];
 function showDeal(n) {
@@ -491,12 +597,22 @@ function showDeal(n) {
 function showHippo(which, sub, mode) {
   const info = HIPPO_INFO[which];
   if (!info) return;
-  $('hippo-art').innerHTML = window.AnimalArt.shape('hippo', 120, which);
-  $('hippo-name').textContent = info.name;
-  $('hippo-name').style.color = (window.HIPPO_COLORS[which] || {}).main || '';
-  $('hippo-fx').textContent = info.fx;
-  $('hippo-sub').textContent = sub || '';
-  $('hippo-sub').classList.toggle('big', mode === 'draw');
+  showNote({
+    art: window.AnimalArt.shape('hippo', 120, which),
+    title: info.name,
+    color: (window.HIPPO_COLORS[which] || {}).main || '',
+    body: info.fx,
+    sub: sub || '',
+    bigSub: mode === 'draw',
+  }, mode);
+}
+function showNote(o, mode) {
+  $('hippo-art').innerHTML = o.art || '';
+  $('hippo-name').textContent = o.title || '';
+  $('hippo-name').style.color = o.color || '';
+  $('hippo-fx').textContent = o.body || '';
+  $('hippo-sub').textContent = o.sub || '';
+  $('hippo-sub').classList.toggle('big', !!o.bigSub);
   const ov = $('modal-hippo');
   // draw mode stays until tapped (tappable); note mode stays pointer-clear
   // so hover never traps (flicker loop)
@@ -676,8 +792,9 @@ function ordersTallyLocal() {
 function renderButtons() {
   const mine = isMyTurn();
   const faceUp = (state.orders || []).some(o => o.faceUp);
+  const blocked = state.noRingFor === state.youId;
   $('btn-take').disabled = !(mine && state.phase === 'playing');
-  $('btn-ring').disabled = !(mine && state.phase === 'playing' && faceUp);
+  $('btn-ring').disabled = !(mine && state.phase === 'playing' && faceUp && !blocked);
 }
 
 // turn countdown frame: one bordered box tracing its target (active tile,

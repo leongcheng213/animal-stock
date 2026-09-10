@@ -130,6 +130,8 @@ def new_room_state(room_code, host_id, host_name):
         "turnDeadline": None,
         "aiActAt": None,       # when the active AI's move is due
         "revealAt": None,      # when the current reveal started (auto-advance)
+        "noRingFor": None,     # player id that may not ring this turn (post-Hippo)
+        "noRingBy": None,      # who played the Hippo causing it
         "ruleMode": DEFAULT_RULE_MODE,  # host can switch in lobby (SET_MODE)
         "winners": [],
         "loserId": None,
@@ -162,6 +164,8 @@ def setup_round(state, rng=None):
     state["phase"] = "playing"
     state["loserId"] = None
     state["winners"] = []
+    state["noRingFor"] = None
+    state["noRingBy"] = None
     return state
 
 
@@ -340,6 +344,8 @@ def resolve_bell(state, ringer_id, rule_mode=None):
                                "winners": list(state["winners"])}
                               if loser else None)
     state["phase"] = "reveal"
+    state["noRingFor"] = None
+    state["noRingBy"] = None
     return resolution
 
 
@@ -415,6 +421,8 @@ def redact_for_viewer(state, viewer_id):
         "activeChoosing": bool(pd),
         "turnDeadline": state.get("turnDeadline"),
         "ruleMode": state.get("ruleMode", "classic"),
+        "noRingFor": state.get("noRingFor"),
+        "noRingBy": state.get("noRingBy"),
         "winners": list(state.get("winners", [])),
         "loserId": state.get("loserId"),
         "youId": viewer_id,
