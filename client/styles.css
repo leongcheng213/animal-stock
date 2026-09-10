@@ -95,10 +95,10 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 .tchips{display:flex;gap:3px;justify-content:center;align-items:center;margin-top:4px;flex-wrap:wrap;min-height:18px;}
 .tchip{background:var(--ink);color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:1px 6px;}
 .ttotal{font-size:13px;font-weight:900;color:var(--accent);}
-.tnone{font-size:11px;color:var(--muted);}
 .stock.me{border-style:dashed;opacity:.9;}
 .stock .nm{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .stock .cd{display:flex;justify-content:center;gap:2px;min-height:52px;flex:1;align-items:center;flex-wrap:wrap;}
+.ownhide{font-size:44px;line-height:1;}
 .halfchip{border-radius:8px;padding:2px 4px;margin:1px;background:#F5EEDF;}
 .halfchip .anicons{display:inline-flex;gap:1px;align-items:center;}
 .halfchip small{display:block;font-size:10px;color:var(--muted);}

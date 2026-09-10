@@ -266,7 +266,7 @@ function openDrawModal() {
     d.className = 'stock' + (p.id === state.youId ? ' me' : '');
     let body;
     if (p.id === state.youId) {
-      body = `<div class="cd">${window.AnimalArt.shape('back', 40)}<br><small>yours (hidden)</small></div>`;
+      body = `<div class="cd"><span class="ownhide">🙈</span></div>`;
     } else {
       const card = p.stockCardId ? state.cards[p.stockCardId] : null;
       body = cardHalvesHTML(card);
@@ -388,7 +388,7 @@ function render() {
 function scoreStr(p) { return p.tokens && p.tokens.length ? p.tokens.join('+') + ' = ' + p.total : '0'; }
 // token chips inside the player's own box: one graphic per token + total
 function tokenChipsHTML(p) {
-  if (!p.tokens || !p.tokens.length) return `<div class="tchips"><span class="tnone">0</span></div>`;
+  if (!p.tokens || !p.tokens.length) return `<div class="tchips"></div>`;
   return `<div class="tchips">` + p.tokens.map(t => `<span class="tchip">⚡${t}</span>`).join('') +
     `<span class="ttotal">${p.total}</span></div>`;
 }
@@ -516,7 +516,7 @@ function renderStocks() {
     d.className = 'stock' + (p.id === state.youId ? ' me' : '');
     let body;
     if (p.id === state.youId && state.phase === 'playing') {
-      body = `<div class="cd">${window.AnimalArt.shape('back', 52)}<br><small>yours (hidden)</small></div>`;
+      body = `<div class="cd"><span class="ownhide">🙈</span></div>`;
     } else {
       const card = p.stockCardId ? state.cards[p.stockCardId] : null;
       body = cardHalvesHTML(card);
