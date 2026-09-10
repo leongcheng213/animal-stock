@@ -46,9 +46,9 @@ Four types, replacing strawberry / banana / grape / durian. Keep exactly four.
 | # | Animal | Rarity in deck | Notes |
 |---|---|---|---|
 | 1 | Toucan | Most common | ~ strawberry |
-| 2 | Fox | Common | ~ banana (this is the type the "Pip" manager sibling cancels) |
-| 3 | Leopard | Uncommon | ~ grape |
-| 4 | Elephant | Rarest | ~ durian, the "dramatic" one |
+| 2 | Zebra | Common | ~ banana (this is the type the "Pip" manager sibling cancels) |
+| 3 | Crocodile | Uncommon | ~ grape |
+| 4 | Lion | Rarest | ~ durian, the "dramatic" one |
 
 **[TUNABLE]** The species themselves. The *rarity ordering* matters — it is a deduction
 aid, because players reason about what is statistically likely to be on their own card.
@@ -68,7 +68,7 @@ Every card has **two halves on the same face**:
 ```json
 { "id": "c17", "halves": [
     { "animal": "toucan",  "count": 1 },
-    { "animal": "leopard", "count": 3 }
+    { "animal": "crocodile", "count": 3 }
 ]}
 ```
 
@@ -88,20 +88,20 @@ each other in impossible claims. Do not break it.
 
 | Half A (single) | Half B | Copies |
 |---|---|---|
-| Toucan 1 | Fox 2 | 4 |
-| Toucan 1 | Fox 3 | 3 |
-| Toucan 1 | Leopard 2 | 3 |
-| Toucan 1 | Leopard 3 | 2 |
-| Toucan 1 | Elephant 2 | 2 |
-| Toucan 1 | Elephant 3 | 1 |
-| Fox 1 | Toucan 2 | 4 |
-| Fox 1 | Toucan 3 | 3 |
-| Fox 1 | Leopard 2 | 2 |
-| Leopard 1 | Toucan 2 | 3 |
-| Leopard 1 | Toucan 3 | 2 |
-| Leopard 1 | Fox 2 | 2 |
-| Elephant 1 | Toucan 2 | 2 |
-| Elephant 1 | Fox 2 | 1 |
+| Toucan 1 | Zebra 2 | 4 |
+| Toucan 1 | Zebra 3 | 3 |
+| Toucan 1 | Crocodile 2 | 3 |
+| Toucan 1 | Crocodile 3 | 2 |
+| Toucan 1 | Lion 2 | 2 |
+| Toucan 1 | Lion 3 | 1 |
+| Zebra 1 | Toucan 2 | 4 |
+| Zebra 1 | Toucan 3 | 3 |
+| Zebra 1 | Crocodile 2 | 2 |
+| Crocodile 1 | Toucan 2 | 3 |
+| Crocodile 1 | Toucan 3 | 2 |
+| Crocodile 1 | Zebra 2 | 2 |
+| Lion 1 | Toucan 2 | 2 |
+| Lion 1 | Zebra 2 | 1 |
 
 Store this as a config array so it can be re-balanced without touching game logic.
 
@@ -136,7 +136,7 @@ effect and the turn ends. **[TUNABLE]** — an alternative is to redraw.)*
 |---|---|
 | **Bo** (big brother) | Cancel **every order showing 3 animals**. |
 | **Dozy** (little brother) | No effect at all. |
-| **Pip** (sister) | Cancel **every Fox order**, regardless of count. |
+| **Pip** (sister) | Cancel **every Zebra order**, regardless of count. |
 
 A Hippo in the stock contributes **zero animals** to inventory. This is the main source
 of drama: a player may be unknowingly holding a card that makes the whole table's
@@ -175,7 +175,7 @@ on_bell_rung(ringer):
     # 1. Apply hippo effects from STOCK cards only
     for hippo in stock_hippos:
         if hippo == BO: cancel every face-up order where count == 3
-        if hippo == PIP:      cancel every face-up order where animal == FOX
+        if hippo == PIP:      cancel every face-up order where animal == ZEBRA
         if hippo == DOZY:       pass
 
     # 2. Tally
@@ -200,7 +200,7 @@ on_bell_rung(ringer):
 Two details that are easy to get wrong:
 
 - The check is **per animal type**, not on the grand total. 5 stock animals vs 4 ordered
-  animals is still oversold if 3 Foxes were ordered and only 2 Foxes exist.
+  animals is still oversold if 3 Zebras were ordered and only 2 Zebras exist.
 - The blamed player on an oversell is whoever placed the **most recent** order, even if
   an earlier player is the one who actually pushed it over the limit. You are on the hook
   for everyone's bluffs the moment you choose to add an order instead of ringing.
@@ -222,7 +222,7 @@ cheap to lose; round 6 or 7 is usually fatal.
 ## 10. Game state shape (suggested)
 
 ```ts
-type Animal = "toucan" | "fox" | "leopard" | "elephant";
+type Animal = "toucan" | "zebra" | "crocodile" | "lion";
 type Half   = { animal: Animal; count: 1 | 2 | 3 };
 type Card   = { id: string; halves: [Half, Half] } | { id: string; hippo: "bo" | "dozy" | "pip" };
 
@@ -346,7 +346,7 @@ Must be visible on one screen without scrolling during a turn:
 1. **Other players' stock cards** — the core information. Face-up, name attached.
 2. **Your own stock card** — shown as a card back. Never spoil it.
 3. **The order board** — every face-up order, plus cancelled ones shown greyed/face-down.
-4. **A running tally** the player can toggle: "orders so far: 3 Toucan, 2 Fox, 1 Elephant".
+4. **A running tally** the player can toggle: "orders so far: 3 Toucan, 2 Zebra, 1 Lion".
    Do not auto-compute what they *can't* know (i.e. never show inventory totals including
    their own card before reveal).
 5. **Two big thumb-reachable buttons:** `Take an order` and `Ring the bell 🔔`.
@@ -386,13 +386,13 @@ rectangles — two or three flat colours per animal, no outlines, no gradients, 
 
 Implement these as unit tests against the resolver.
 
-1. Stock: Toucan 3, Fox 2. Orders: Toucan 3. → not oversold → ringer blamed.
-2. Stock: Toucan 3, Fox 2. Orders: Toucan 2, Fox 3. → oversold (Fox) → last orderer blamed.
-3. Stock totals 6, orders total 5, but Elephant 2 ordered vs 1 in stock → oversold.
+1. Stock: Toucan 3, Zebra 2. Orders: Toucan 3. → not oversold → ringer blamed.
+2. Stock: Toucan 3, Zebra 2. Orders: Toucan 2, Zebra 3. → oversold (Zebra) → last orderer blamed.
+3. Stock totals 6, orders total 5, but Lion 2 ordered vs 1 in stock → oversold.
 4. Bo in stock; every order is a 3-count → all cancelled → not oversold → ringer blamed.
-5. Pip in stock; orders are Fox 3, Toucan 1; stock has 0 Fox → Fox cancelled → not oversold.
+5. Pip in stock; orders are Zebra 3, Toucan 1; stock has 0 Zebra → Zebra cancelled → not oversold.
 6. Hippo in stock contributes 0 animals — verify it is not counted as inventory.
-7. A Hippo played as an order face-down a 3-Elephant order → that order excluded from tally.
+7. A Hippo played as an order face-down a 3-Lion order → that order excluded from tally.
 8. Token sequence across 7 rounds is exactly 1,2,3,4,5,6,7 and game ends at ≥7 total.
 9. Player A has 3 points, player B has 7 → game over, A wins.
 10. Bell attempted on an empty board → rejected as an illegal action.
@@ -414,7 +414,7 @@ in the credits crediting the original design is the right thing to do.
 - **Multiplayer:** separate phones, shared room code, authoritative server (§12).
 - **Stack:** Vite + Three.js client, Node + ws server, shared resolver (§12–13).
 - **Manager:** Hippo, with three sibling hippos — Bo, Dozy, Pip. Not a stock animal.
-- Stock animals: Toucan, Fox, Leopard, Elephant.
+- Stock animals: Toucan, Zebra, Crocodile, Lion.
 
 Still open:
 

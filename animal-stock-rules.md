@@ -1,6 +1,6 @@
 # Animal Stock — How to Play
 
-**2–7 players · about 20 minutes**
+**2–6 players · about 20 minutes**
 
 ---
 
@@ -22,9 +22,9 @@ If you think too much has been promised, ring the bell and call the manager. But
 
 ## What you're working with
 
-**Four animals:** Toucan, Fox, Leopard, Elephant.
+**Four animals:** Toucan, Zebra, Crocodile, Lion.
 
-There are lots of toucans, plenty of foxes, fewer leopards, and elephants are rare. This
+There are lots of toucans, plenty of zebras, fewer crocodiles, and lions are rare. This
 matters — it's your best clue about what you're probably holding.
 
 **Cards.** Every card is split into two halves. One half always shows exactly **one**
@@ -32,8 +32,8 @@ animal. The other half shows **two or three** of a different animal.
 
 ```
 ┌─────────────┬─────────────┐
-│      🦊     │   🦜 🦜 🦜  │
-│    1 Fox    │  3 Toucans  │
+│      🦓     │   🦜 🦜 🦜  │
+│    1 Zebra    │  3 Toucans  │
 └─────────────┴─────────────┘
 ```
 
@@ -53,8 +53,10 @@ on them below).
 
 1. Shuffle everything into one deck.
 2. Everyone gets one card as their stock — **visible to everyone except its owner**.
-3. The request board starts empty.
-4. Play passes to the left.
+3. At two players, one extra card is dealt face up as a **spare**. It belongs to nobody
+   and takes no turns, but it counts as stock.
+4. The request board starts empty.
+5. Play passes to the left.
 
 That's it. Rounds are quick, and you'll play up to seven of them.
 
@@ -86,18 +88,26 @@ there hoping nobody covers it before your turn comes around.
 
 ## Checking the totals
 
-Reveal every stock card, then compare, **one animal at a time**:
+Reveal every stock card, then check **the newest request on the board** — the one that
+was just added:
 
-> Are there more foxes promised than foxes in stock?
-> More elephants promised than elephants in stock?
-> ...and so on for all four.
+> Are there more zebras promised than zebras in stock?
 
-If **any single animal** is over, the promises are bad. Grand totals don't matter — five
-animals in stock doesn't help if three leopards were promised and only two exist.
+That animal alone is judged. An earlier request that quietly went over is *not* checked,
+which is what makes the last person to add to the board the one on the hook.
+
+Only that one animal matters. Grand totals don't — five animals in stock doesn't help if
+three crocodiles were promised and only two exist.
+
+> **Host option — check every animal.** In the lobby, the host can switch the bell from
+> *Last order only* to *All animals*. Then all four are compared at once and any single
+> animal being over makes the promises bad. Bells land far more often, so rounds end
+> sooner and ringing is much safer.
 
 **If the promises are bad** → the player who took the **last** request is blamed. Not
 whoever technically broke it. The moment you add to the board instead of ringing the bell,
-you take responsibility for everything already on it.
+you take responsibility for everything already on it. (Under *All animals*, the blame goes
+to whoever placed the most recent request that still counts.)
 
 **If the promises are fine** → the person who rang the bell is blamed. You dragged the
 manager out for nothing.
@@ -110,7 +120,15 @@ Three cards in the deck are the manager's siblings. What they do depends on wher
 turn up.
 
 **If you draw one on your turn:** instead of taking a request, pick any request already on
-the board and turn it face down. It's cancelled — it no longer counts.
+the board and **flip it over to its other half**. The half nobody chose becomes the
+promise, and the half that was promised is set aside. A request for 1 Lion can become
+a request for 2 Zebras in front of everyone.
+
+Flipping is not taking a request, so it never puts you on the hook — the blame for that
+request stays with whoever originally placed it.
+
+**Then the next player cannot ring the bell.** They have to take a request and live with
+the new board for a turn. Whoever comes after them may ring as normal.
 
 **If one is sitting in front of a player as their stock:** nobody finds out until the bell
 rings. Then:
@@ -119,7 +137,7 @@ rings. Then:
 |---|---|
 | **Bo** | Cancels every request showing **three** animals. |
 | **Dozy** | Does absolutely nothing. |
-| **Pip** | Cancels every **fox** request. |
+| **Pip** | Cancels every **zebra** request. |
 
 A sibling card holds no animals, so that player contributes **nothing** to stock.
 
@@ -138,7 +156,8 @@ So early mistakes are cheap and late ones are ruinous. By round five, calling th
 wrong can end your game outright.
 
 After the token is handed out, shuffle everything, deal fresh stock cards, and start
-again. The player to the left of whoever got blamed goes first.
+again. **Whoever took the token goes first** — you get the first move of the round you
+just paid for.
 
 ---
 
@@ -152,25 +171,26 @@ The moment someone's anger tokens add up to **7 or more**, the game stops.
 
 ## A worked example
 
-Four players. On the board so far: 2 Toucans, 3 Foxes, 1 Elephant.
+Four players. On the board so far: 2 Toucans, 3 Zebras, and — added just now by Alex —
+1 Lion.
 
 It's your turn. Looking around, you can see three stock cards:
 
-- Priya: 1 Leopard + 2 Toucans
-- Sam: 1 Toucan + 3 Foxes
-- Alex: 1 Elephant + 2 Toucans
+- Priya: 1 Crocodile + 2 Toucans
+- Sam: 1 Toucan + 3 Zebras
+- Alex: 1 Lion + 2 Toucans
 
-That's 5 Toucans, 3 Foxes, 1 Leopard, 1 Elephant — before your own card, which you can't
-see. The board needs 2 Toucans (fine), 3 Foxes (exactly covered), 1 Elephant (exactly
-covered).
+That's 5 Toucans, 3 Zebras, 1 Crocodile, 1 Lion — before your own card, which you can't
+see.
 
-Everything is currently satisfied, so ringing the bell now would blame **you**. You draw:
-**1 Elephant / 2 Foxes**.
+Ring the bell and only Alex's lion is judged: 1 promised, 1 visible. Covered. So the
+bell would blame **you**. Instead you draw: **1 Lion / 2 Zebras**.
 
-- Play the 2 Foxes and you've promised 5 foxes against 3 visible. You'd need your own
-  hidden card to be carrying at least two more — unlikely, but foxes are common.
-- Play the 1 Elephant and you've promised 2 against 1 visible. You only need one elephant
-  on your own card — but elephants are rare, so it's a real gamble.
+- Play the 2 Zebras and zebras become the animal the bell judges: 5 promised against 3
+  visible. You'd need your own hidden card to be carrying at least two more — unlikely,
+  but zebras are common.
+- Play the 1 Lion and it's 2 promised against 1 visible. You only need one lion on
+  your own card — but lions are rare, so it's a real gamble.
 
 Either way, the next player has to decide whether you look confident enough to be telling
 the truth.
@@ -181,8 +201,10 @@ the truth.
 
 - One half of every card always shows exactly one animal.
 - Stock counts both halves. A request counts one half.
-- Check each animal separately, never the total.
+- The bell judges the **newest request's animal** only — never the total. (Hosts can
+  switch it to all four animals in the lobby.)
 - Promises bad → blame the last player to take a request.
 - Promises fine → blame the bell-ringer.
+- A drawn sibling flips a request to its other half, and blocks the next player's bell.
 - Tokens go 1, 2, 3, 4, 5, 6, 7. Reach 7 and the game ends.
-- Fewest points wins.
+- Whoever took the token starts the next round. Fewest points wins.

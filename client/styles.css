@@ -83,7 +83,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 /* ring bell: just the bell, pinned to the table's own top-right corner —
    inside the boundary, clear of the status pill */
 #table-wrap > .bellbtn{position:absolute;z-index:4;top:6px;right:6px;background:none;border:0;
-  font-size:44px;line-height:1.2;padding:6px;cursor:pointer;
+  line-height:0;padding:6px;cursor:pointer;
   filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));}
 #table-wrap > .bellbtn:disabled{opacity:.38;filter:grayscale(.85);animation:none;}
 #table-wrap > .bellbtn:not(:disabled){animation:ringpulse 1.6s ease-in-out infinite;}
@@ -296,4 +296,41 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 .tdot{width:8px;height:8px;border-radius:50%;background:#D8CFC0;}
 .tdot.on{background:var(--ink);}
 .orow.demo-last .pick{border-color:var(--accent);}
-#btn-tour{margin-bottom:10px;}
+
+/* guided walkthrough: a spotlight on the real board plus a note that points
+   at it. The ring's huge outward shadow IS the dimmer, so the highlighted
+   element stays fully lit and untinted. */
+#walk{position:fixed;inset:0;z-index:900;}
+#walk.hidden{display:none;}
+#walk-shield{position:absolute;inset:0;background:transparent;}
+#walk.nospot #walk-shield{background:rgba(20,28,36,.75);}
+#walk-ring{position:fixed;border:3px solid var(--accent);border-radius:var(--rad);
+  box-shadow:0 0 0 9999px rgba(20,28,36,.75),0 0 0 7px rgba(255,59,92,.28);
+  pointer-events:none;transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease;}
+#walk.nospot #walk-ring{display:none;}
+#walk-note{position:fixed;width:min(360px,calc(100vw - 20px));background:var(--card);
+  color:var(--ink);border-radius:16px;padding:13px 14px 10px;
+  box-shadow:0 14px 36px rgba(0,0,0,.38);}
+.walk-caret{position:absolute;width:0;height:0;
+  border-left:10px solid transparent;border-right:10px solid transparent;}
+#walk-note.below .walk-caret{top:-10px;border-bottom:10px solid var(--card);}
+#walk-note.above .walk-caret{bottom:-10px;border-top:10px solid var(--card);}
+#walk-count{color:var(--muted);font-size:11px;letter-spacing:1.5px;font-weight:800;}
+#walk-note h3{margin:3px 0 6px;font-size:18px;line-height:1.25;}
+#walk-note p{margin:0 0 10px;font-size:14.5px;line-height:1.5;}
+#walk-x{position:absolute;top:6px;right:8px;border:0;background:none;
+  font-size:17px;color:var(--muted);cursor:pointer;line-height:1;padding:4px;}
+.walk-nav{display:flex;align-items:center;gap:8px;}
+.walk-nav button{border:0;border-radius:11px;padding:9px 13px;font-size:15px;
+  font-weight:800;cursor:pointer;}
+#walk-prev{background:#EDE7DC;color:var(--ink);}
+#walk-prev:disabled{opacity:.3;cursor:not-allowed;}
+#walk-next{background:var(--accent);color:#fff;margin-left:auto;}
+#walk-dots{display:flex;gap:3px;flex-wrap:wrap;max-width:165px;}
+.wdot{width:5px;height:5px;border-radius:50%;background:#DCD3C4;}
+.wdot.on{background:var(--accent);}
+.walk-sibs{display:flex;gap:14px;justify-content:center;margin:8px 0 2px;}
+.walk-sibs > div{text-align:center;font-size:11px;font-weight:900;letter-spacing:.5px;}
+/* the walkthrough is a different kind of action from create/join —
+   give it real air so it never reads as a third way into a game */
+#btn-walk{margin-top:30px;margin-bottom:8px;}

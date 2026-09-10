@@ -126,6 +126,7 @@ function onMsg(m) {
       pendingBotTotal = 0;
     }
   } else if (m.type === 'STATE') {
+    if (walkOn) return;   // the walkthrough owns the screen right now
     state = m.state;
     render();
   } else if (m.type === 'DRAWN') {
@@ -158,7 +159,7 @@ $('btn-create').onclick = () => {
   $('join-err').textContent = '';
   sendLobby({ type: 'CREATE', name: playerName });
 };
-$('btn-join').onclick = () => {
+function joinWithCode() {
   playerName = ($('in-name').value || 'Player').trim().slice(0, 12) || 'Player';
   const code = ($('in-code').value || '').trim().toUpperCase();
   if (code.length !== 4) { $('join-err').textContent = 'Code is 4 characters.'; return; }
@@ -168,7 +169,20 @@ $('btn-join').onclick = () => {
   sessionStorage.removeItem('as_pid');
   roomCode = code; sessionStorage.setItem('as_room', code);
   sendLobby({ type: 'JOIN', room: code, name: playerName });
+}
+// First tap opens the code box (nothing to type into before that); once it is
+// open the same button does the joining.
+$('btn-join').onclick = () => {
+  const fld = $('code-field');
+  if (fld.classList.contains('hidden')) {
+    fld.classList.remove('hidden');
+    $('join-err').textContent = '';
+    $('in-code').focus();
+    return;
+  }
+  joinWithCode();
 };
+$('in-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinWithCode(); });
 $('btn-start').onclick = () => send({ type: 'START' });
 
 // ---------- guided picture tour (inside How to play) ----------
@@ -180,8 +194,8 @@ const TOUR = [
   { t: 'Whose card is whose?',
     b: 'Every stock card faces <b>everyone except its owner</b>. You see their animals — never your own 🙈. (2-player games add a shared spare card.)',
     mock: `<div class="stocks">
-      <div class="stock"><div class="nm">Ann</div><div class="cd"><span class="halfchip">${ART.icon('toucan', 1, 20)}</span><span class="halfchip">${ART.icon('leopard', 2, 20)}</span></div></div>
-      <div class="stock"><div class="nm">Bo</div><div class="cd"><span class="halfchip">${ART.icon('fox', 1, 20)}</span><span class="halfchip">${ART.icon('toucan', 2, 20)}</span></div></div>
+      <div class="stock"><div class="nm">Ann</div><div class="cd"><span class="halfchip">${ART.icon('toucan', 1, 20)}</span><span class="halfchip">${ART.icon('crocodile', 2, 20)}</span></div></div>
+      <div class="stock"><div class="nm">Bo</div><div class="cd"><span class="halfchip">${ART.icon('zebra', 1, 20)}</span><span class="halfchip">${ART.icon('toucan', 2, 20)}</span></div></div>
       <div class="stock me"><div class="nm">You</div><div class="cd"><span style="font-size:40px">🙈</span></div></div>
     </div>` },
   { t: 'Take an order',
@@ -189,30 +203,30 @@ const TOUR = [
     mock: `<button class="takebtn" style="min-height:56px;font-size:17px"><span class="deckmini"></span><span>TAKE</span></button>
     <div class="halves">
       <div class="halfpick"><div>${ART.icon('toucan', 1, 44)}</div><div class="big">A — 1× toucan</div></div>
-      <div class="halfpick"><div>${ART.icon('leopard', 3, 44)}</div><div class="big">B — 3× leopard</div></div>
+      <div class="halfpick"><div>${ART.icon('crocodile', 3, 44)}</div><div class="big">B — 3× crocodile</div></div>
     </div>` },
   { t: 'The order board',
     b: 'Picked halves pile up, newest at the bottom. The faded halves beside them are the discards — <b>they count for nothing</b>.',
-    mock: `<div class="orow"><div class="disc">${ART.icon('leopard', 3, 20)}</div><div class="pick">${ART.icon('toucan', 1, 26)}</div></div>
-    <div class="orow"><div class="disc">${ART.icon('toucan', 2, 20)}</div><div class="pick">${ART.icon('fox', 1, 26)}</div></div>` },
+    mock: `<div class="orow"><div class="disc">${ART.icon('crocodile', 3, 20)}</div><div class="pick">${ART.icon('toucan', 1, 26)}</div></div>
+    <div class="orow"><div class="disc">${ART.icon('toucan', 2, 20)}</div><div class="pick">${ART.icon('zebra', 1, 26)}</div></div>` },
   { t: 'The running tally',
     b: 'Always-visible totals of face-up orders — your deduction aid. It <b>never includes hidden stocks</b>, so that part is up to you.',
-    mock: `<div class="draw-tally"><span class="dtchip">${ART.icon('toucan', 1, 20)}<b>3</b></span><span class="dtchip">${ART.icon('fox', 1, 20)}<b>2</b></span><span class="dtchip">${ART.icon('leopard', 1, 20)}<b>0</b></span><span class="dtchip">${ART.icon('elephant', 1, 20)}<b>1</b></span></div>` },
+    mock: `<div class="draw-tally"><span class="dtchip">${ART.icon('toucan', 1, 20)}<b>3</b></span><span class="dtchip">${ART.icon('zebra', 1, 20)}<b>2</b></span><span class="dtchip">${ART.icon('crocodile', 1, 20)}<b>0</b></span><span class="dtchip">${ART.icon('lion', 1, 20)}<b>1</b></span></div>` },
   { t: 'Ring the bell 🔔',
     b: 'On <b>YOUR turn only</b>, with at least 1 face-up order: accuse the table of overselling. Spot it on someone else\u2019s turn? You must wait for yours.',
     mock: `<div style="font-size:64px">🔔</div>` },
   { t: 'Only the last order is judged',
     b: 'The bell checks <b>just the newest order\u2019s animal</b> against stock. Everything older is history. (Hosts can switch to all-animals.)',
-    mock: `<div class="orow"><div class="disc">${ART.icon('fox', 1, 20)}</div><div class="pick">${ART.icon('toucan', 2, 26)}</div></div>
-    <div class="orow demo-last"><div class="disc">${ART.icon('toucan', 1, 20)}</div><div class="pick">${ART.icon('fox', 3, 26)}</div></div>` },
+    mock: `<div class="orow"><div class="disc">${ART.icon('zebra', 1, 20)}</div><div class="pick">${ART.icon('toucan', 2, 26)}</div></div>
+    <div class="orow demo-last"><div class="disc">${ART.icon('toucan', 1, 20)}</div><div class="pick">${ART.icon('zebra', 3, 26)}</div></div>` },
   { t: 'Who takes the token?',
     b: 'Oversold → whoever placed the <b>last order</b> takes the token. Board was fine → <b>you, the ringer</b>, take it. The token-taker starts next round.',
     mock: `<div class="tchips"><span class="tchip">⚡1</span><span class="tchip">⚡2</span><span class="ttotal">3</span></div>` },
   { t: 'Hippo drawn = swap',
     b: 'Drew a Hippo? Tap any face-up order to <b>swap its halves</b> — the unpicked side goes live. The Hippo parks beside that row. Empty board: it naps. Swapping can never blame you.',
-    mock: `<div class="orow"><div class="pick">${ART.icon('leopard', 3, 26)}</div><div class="disc">${ART.icon('toucan', 1, 20)}</div><div class="flipmarks"><span class="fmark">${ART.shape('hippo', 24, 'bo')}</span></div></div>` },
+    mock: `<div class="orow"><div class="pick">${ART.icon('crocodile', 3, 26)}</div><div class="disc">${ART.icon('toucan', 1, 20)}</div><div class="flipmarks"><span class="fmark">${ART.shape('hippo', 24, 'bo')}</span></div></div>` },
   { t: 'Hippos hiding in stocks',
-    b: 'Revealed only when the bell rings: <b>BO</b> (red) cancels all 3-counts · <b>PIP</b> (purple) cancels all Fox · <b>DOZY</b> (grey) naps. Tap any Hippo in-game to re-read this.',
+    b: 'Revealed only when the bell rings: <b>BO</b> (red) cancels all 3-counts · <b>PIP</b> (purple) cancels all Zebra · <b>DOZY</b> (grey) naps. Tap any Hippo in-game to re-read this.',
     mock: `<div style="display:flex;gap:14px">${['bo', 'pip', 'dozy'].map(h => `<div style="text-align:center">${ART.shape('hippo', 54, h)}<div><b>${h.toUpperCase()}</b></div></div>`).join('')}</div>` },
   { t: 'No ringing after Hippo',
     b: 'The turn right after a Hippo draw <b>cannot ring</b> — the bell locks and you must take. Hover the bell anytime to see the rule.',
@@ -243,7 +257,10 @@ function renderTour() {
   $('tour-prev').disabled = tourIdx === 0;
   $('tour-next').disabled = tourIdx === TOUR.length - 1;
 }
-$('btn-tour').onclick = () => openTour();
+// the picture tour has no button on the join screen any more; it stays
+// reachable through the ?tour=N hook only
+const tourBtn = document.getElementById('btn-tour');
+if (tourBtn) tourBtn.onclick = () => openTour();
 $('btn-tour-x').onclick = (e) => { e.stopPropagation(); closeTour(); };
 $('btn-tour-go').onclick = (e) => { e.stopPropagation(); closeTour(); };
 $('tour-prev').onclick = (e) => { e.stopPropagation(); if (tourIdx > 0) { tourIdx--; renderTour(); } };
@@ -358,7 +375,7 @@ function openDrawModal() {
   $('draw-title').textContent = 'Your draw — pick ONE half';
   $('draw-card').innerHTML = '';
   const dt = ordersTallyLocal();
-  $('draw-tally').innerHTML = ['toucan', 'fox', 'leopard', 'elephant'].map(a =>
+  $('draw-tally').innerHTML = ['toucan', 'zebra', 'crocodile', 'lion'].map(a =>
     `<span class="dtchip">${window.AnimalArt.icon(a, 1, 20)}<b>${dt[a] || 0}</b></span>`).join('');
   // stocks snapshot for reference (read-only; nothing can change mid-pick)
   const ds = $('draw-stocks');
@@ -511,7 +528,7 @@ function cardHalvesHTML(card, dimExcept, iconPx) {
 const HIPPO_INFO = {
   bo:   { name: 'BO',   fx: 'Cancels every order showing exactly 3 animals at reveal.' },
   dozy: { name: 'DOZY', fx: 'Does nothing at reveal — pure bluff.' },
-  pip:  { name: 'PIP',  fx: 'Cancels every Fox order at reveal.' },
+  pip:  { name: 'PIP',  fx: 'Cancels every Zebra order at reveal.' },
 };
 let hippoHideT = 0, hippoOverlayMode = null, lastTouchT = 0;
 let lastDealKey = '', dealHideT = 0, dealTextT = 0;
@@ -541,7 +558,7 @@ function bellNote() {
   const blocked = state && state.noRingFor === state.youId;
   const by = state && state.noRingBy ? nameOf(state.noRingBy) : null;
   showNote({
-    art: '<div style="font-size:110px;line-height:1">🔔</div>',
+    art: window.AnimalArt.shape('bell', 110),
     title: blocked ? 'RING BLOCKED' : 'THE BELL',
     color: blocked ? '#FF3B5C' : '',
     body: blocked
@@ -700,7 +717,7 @@ function renderOrdersInto(el, flipMode) {
     let cancelledByStock = false;
     if (o.faceUp) {
       if (hippos.has('bo') && o.count === 3) cancelledByStock = true;
-      if (hippos.has('pip') && o.animal === 'fox') cancelledByStock = true;
+      if (hippos.has('pip') && o.animal === 'zebra') cancelledByStock = true;
     }
     const dead = !o.faceUp || cancelledByStock;
     row.className = 'orow' + (dead && !(judged && judged.has(o.animal)) ? ' down' : '');
@@ -748,7 +765,7 @@ function renderSideTally() {
   const t = ordersTallyLocal();
   const lastFace = [...(state.orders || [])].reverse().find(o => o.faceUp);
   const lastOnly = (state.ruleMode || 'last_only') === 'last_only';
-  el.innerHTML = ['toucan', 'fox', 'leopard', 'elephant'].map(a =>
+  el.innerHTML = ['toucan', 'zebra', 'crocodile', 'lion'].map(a =>
     `<div class="strow${lastOnly && lastFace && lastFace.animal === a ? ' live' : ''}" title="${a} ordered">${window.AnimalArt.icon(a, 1, 22)}<b>${t[a] || 0}</b></div>`).join('');
 }
 
@@ -789,7 +806,7 @@ function stockHipposLocal() {
 }
 
 function ordersTallyLocal() {
-  const t = { toucan: 0, fox: 0, leopard: 0, elephant: 0 };
+  const t = { toucan: 0, zebra: 0, crocodile: 0, lion: 0 };
   state.orders.forEach(o => { if (o.faceUp) t[o.animal] += o.count; });
   return t;
 }
@@ -805,6 +822,10 @@ function renderButtons() {
 // whole table on your turn, draw sheet while picking), revealed through a
 // rotating conic mask so it hugs rounded corners and drains gradually with
 // its end pinned at the top-right corner. No bars anywhere.
+// One turn's clock, in seconds — mirrors TURN_SECONDS/CHOOSE_SECONDS in
+// server.py. Only drives the countdown ring's fill; the server owns the
+// real deadline, so a mismatch is cosmetic.
+const TURN_WINDOW = 30;
 setInterval(tickTimer, 50);
 function tickTimer() {
   const ov = $('turnframe');
@@ -813,7 +834,7 @@ function tickTimer() {
     return;
   }
   const left = state.turnDeadline - Date.now() / 1000;
-  const frac = Math.max(0, Math.min(1, left / 15));
+  const frac = Math.max(0, Math.min(1, left / TURN_WINDOW));
   let tel = null;
   if (!$('modal-draw').classList.contains('hidden') && state.hasPendingDraw) {
     tel = document.querySelector('#modal-draw .sheet');
@@ -993,6 +1014,307 @@ function toast(msg) {
   toastT = setTimeout(() => t.classList.add('hidden'), 2600);
 }
 
+// ---------- guided walkthrough: one whole round, on the real board ----------
+// Nothing here is a mock-up. It feeds a scripted state into the real renderer
+// and points at the live elements, so the walkthrough cannot drift out of sync
+// with the game it explains. Every number below is a legal deal: the cards all
+// exist in DECK_CONFIG and the verdict is what shared/game_logic.py would rule.
+const W_CARDS = {
+  wAnn: { id: 'wAnn', halves: [{ animal: 'toucan', count: 1 }, { animal: 'crocodile', count: 2 }] },
+  wBo: { id: 'wBo', halves: [{ animal: 'zebra', count: 1 }, { animal: 'toucan', count: 3 }] },
+  wYou: { id: 'wYou', hippo: 'dozy' },
+  w1: { id: 'w1', halves: [{ animal: 'toucan', count: 1 }, { animal: 'zebra', count: 2 }] },
+  w2: { id: 'w2', halves: [{ animal: 'crocodile', count: 1 }, { animal: 'toucan', count: 3 }] },
+  w3: { id: 'w3', hippo: 'bo' },
+  w4: { id: 'w4', halves: [{ animal: 'lion', count: 1 }, { animal: 'toucan', count: 2 }] },
+  w5: { id: 'w5', halves: [{ animal: 'toucan', count: 1 }, { animal: 'zebra', count: 3 }] },
+};
+function wBase() {
+  const mk = (id, name, seat, card) => ({
+    id, name, seat, stockCardId: card, tokens: [], total: 0,
+    connected: true, ai: false,
+  });
+  return {
+    room: 'DEMO', phase: 'playing', round: 1, nextTokenValue: 1, deckCount: 28,
+    players: [mk('ann', 'Ann', 0, 'wAnn'), mk('bo', 'Bo', 1, 'wBo'), mk('you', 'You', 2, 'wYou')],
+    hostId: 'ann', youId: 'you', activeSeat: 2,
+    cards: JSON.parse(JSON.stringify(W_CARDS)),
+    orders: [], hippoDiscards: [], dummyStockCardId: null,
+    lastOrderBy: null, lastResolution: null, turnDeadline: null,
+    hasPendingDraw: false, pendingDrawCardId: null, activeChoosing: false,
+    noRingFor: null, noRingBy: null, winners: [], loserId: null,
+    ruleMode: 'last_only',
+  };
+}
+// place an order exactly the way the server's _append_order does
+function wPlace(s, cardId, half, by) {
+  const c = s.cards[cardId], pick = c.halves[half], other = c.halves[1 - half];
+  s.orders.push({
+    cardId, halfIndex: half, faceUp: true, placedBy: by,
+    animal: pick.animal, count: pick.count,
+    discarded: { animal: other.animal, count: other.count }, flippedBy: [],
+  });
+  s.lastOrderBy = by;
+  s.deckCount -= 1;
+}
+// ...and swap one exactly the way apply_hippo_swap does
+function wSwap(s, idx, hippoId) {
+  const o = s.orders[idx], kept = { animal: o.animal, count: o.count };
+  o.animal = o.discarded.animal;
+  o.count = o.discarded.count;
+  o.discarded = kept;
+  o.flippedBy = (o.flippedBy || []).concat([hippoId]);
+  s.hippoDiscards.push(hippoId);
+  s.deckCount -= 1;
+}
+const W_SIBS = '<div class="walk-sibs">' + ['bo', 'pip', 'dozy']
+  .map(h => '<div>' + ART.shape('hippo', 46, h) + '<div>' + h.toUpperCase() + '</div></div>')
+  .join('') + '</div>';
+
+const WALK = [
+  {
+    t: 'One round, start to finish',
+    b: 'Three players — you are the bottom card. This is the real game screen, not a picture of one. Tap <b>Next</b> to play a round through.',
+    sel: '#table-wrap',
+  },
+  {
+    t: 'What everyone is holding',
+    b: 'Each player has one <b>stock</b> card, and <b>both halves count</b>. Ann is holding 1 toucan + 2 crocodiles. Bo has 1 zebra + 3 toucans. That is the sanctuary’s entire supply.',
+    sel: '#stocks',
+  },
+  {
+    t: 'Except yours',
+    b: 'Your card shows 🙈 — to <b>you</b>. Ann and Bo can both see it. Everyone is counting animals they can see, and guessing at the one they cannot.',
+    sel: '.stock.me',
+  },
+  {
+    t: 'Your turn: two choices',
+    b: '<b>TAKE</b> draws the top card and promises something. The bell 🔔 in the corner accuses the table of promising animals that do not exist. You can only ring on your own turn.',
+    sel: '#btn-take',
+  },
+  {
+    t: 'Pick ONE half',
+    b: 'You drew <b>1 toucan / 2 zebra</b>. Only the half you tap becomes a promise — the other is thrown away. You can see a zebra in Bo’s hand, so 2 zebra looks affordable. Take it.',
+    sel: '#draw-halves',
+    run: (s) => { s.hasPendingDraw = true; s.pendingDrawCardId = 'w1'; s.activeChoosing = true; },
+  },
+  {
+    t: 'Your promise lands',
+    b: 'The picked half sits on the board. The <b>faded half beside it is the discard</b> — it counts for nothing. You have now promised <b>2 zebra</b>.',
+    sel: '#orders',
+    run: (s) => {
+      s.hasPendingDraw = false; s.pendingDrawCardId = null; s.activeChoosing = false;
+      wPlace(s, 'w1', 1, 'you');
+      s.activeSeat = 0;
+    },
+  },
+  {
+    t: 'The running tally',
+    b: 'Down the side: how many of each animal have been <b>promised</b> so far. It never includes anyone’s stock — that part is your job.',
+    sel: '#side-tally',
+  },
+  {
+    t: 'Ann goes big',
+    b: 'Ann draws and promises <b>3 toucans</b>. Toucans are the commonest animal, so it is a fair bet — but the board is filling up.',
+    sel: '#orders',
+    run: (s) => { wPlace(s, 'w2', 1, 'ann'); s.activeSeat = 1; },
+  },
+  {
+    t: 'Bo draws a Hippo 🦛',
+    b: 'A Hippo drawn on your turn cancels nothing — it <b>swaps a row’s two halves</b>. Bo points it at your row, so your <b>2 zebra flips to 1 toucan</b> and the zebra is discarded. The Hippo parks beside the row it changed.',
+    sel: '#orders',
+    run: (s) => { wSwap(s, 0, 'w3'); s.activeSeat = 2; s.noRingFor = 'you'; s.noRingBy = 'bo'; },
+  },
+  {
+    t: 'The bell is locked',
+    b: 'The turn straight after a Hippo <b>cannot ring</b>. You have to take a card and live with the new board for a turn. And Bo can never be blamed for that swap — flipping is not promising.',
+    sel: '#btn-ring',
+  },
+  {
+    t: 'So you take, quietly',
+    b: 'You promise <b>1 lion</b>. Lions are the rarest animal — only ten in the whole deck — so promising one is a real risk. But it is small, and you had no choice.',
+    sel: '#orders',
+    run: (s) => { wPlace(s, 'w4', 0, 'you'); s.activeSeat = 0; s.noRingFor = null; s.noRingBy = null; },
+  },
+  {
+    t: 'Ann overreaches',
+    b: 'Ann promises <b>3 zebra</b>. That is now the <b>newest</b> order — and the bell judges the newest order’s animal and nothing else. Zebra is suddenly the only number that matters.',
+    sel: '#side-tally',
+    run: (s) => { wPlace(s, 'w5', 1, 'ann'); s.activeSeat = 2; },
+  },
+  {
+    t: 'Now count it',
+    b: 'Zebra promised: <b>3</b>. Zebra you can actually see: <b>1</b>, in Bo’s hand. The missing two would have to be on your own hidden card — and one card carries at most three of anything.',
+    sel: '#stocks',
+  },
+  {
+    t: 'Ring it 🔔',
+    b: 'It is your turn and the bell is unlocked again. You think Ann has promised zebra that do not exist. Call her.',
+    sel: '#btn-ring',
+  },
+  {
+    t: 'Everything flips',
+    b: 'Every stock card turns over. Yours was <b>DOZY the Hippo</b> — a Hippo holds <b>no animals at all</b>, so you were adding nothing to the supply the whole round. The zebra you were hoping for was never there.',
+    sel: '#modal-reveal .sheet',
+    run: (s) => {
+      s.phase = 'reveal';
+      s.lastResolution = {
+        oversold: true, oversoldAnimals: ['zebra'], checkedAnimal: 'zebra',
+        ruleMode: 'last_only',
+        stockTally: { toucan: 4, zebra: 1, crocodile: 2, lion: 0 },
+        ordersTally: { toucan: 4, zebra: 3, crocodile: 0, lion: 1 },
+        blamedId: 'ann', ringerId: 'you', tokenGiven: 1,
+        verdict: 'MANAGER IS FURIOUS — the orders were bad',
+        stockHippos: ['dozy'], gameOver: null,
+      };
+    },
+  },
+  {
+    t: 'Good call — Ann pays',
+    b: '3 zebra promised against <b>1</b> in stock. The promises were bad, so the <b>last player to promise</b> takes the anger token — Ann, not whoever technically broke it. She takes ⚡1 and starts the next round.',
+    // the verdict line lives inside the scrollable sheet, so anchor to the
+    // sheet itself: scrolling a sub-element out from under the ring looks broken
+    sel: '#modal-reveal .sheet',
+    run: (s) => {
+      s.phase = 'reveal';
+      s.lastResolution = {
+        oversold: true, oversoldAnimals: ['zebra'], checkedAnimal: 'zebra',
+        ruleMode: 'last_only',
+        stockTally: { toucan: 4, zebra: 1, crocodile: 2, lion: 0 },
+        ordersTally: { toucan: 4, zebra: 3, crocodile: 0, lion: 1 },
+        blamedId: 'ann', ringerId: 'you', tokenGiven: 1,
+        verdict: 'MANAGER IS FURIOUS — the orders were bad',
+        stockHippos: ['dozy'], gameOver: null,
+      };
+      s.players[0].tokens = [1];
+      s.players[0].total = 1;
+      s.nextTokenValue = 2;
+    },
+  },
+  {
+    t: 'The other two Hippos',
+    b: 'Dozy just naps. The siblings bite — and only while sitting in someone’s <b>stock</b>, revealed at the bell:<br><b>BO</b> cancels every order showing <b>three</b> animals. <b>PIP</b> cancels every <b>zebra</b> order. Tap any Hippo mid-game to re-read this.' + W_SIBS,
+    sel: null,
+  },
+  {
+    t: 'That is a round',
+    b: 'Tokens climb: 1, then 2, then 3… Reach <b>7 total and you lose</b> — <b>fewest points wins</b>. The rest is watching what people promise, and deciding whether you believe them.',
+    sel: null,
+  },
+];
+
+let walkOn = false, walkIdx = 0, walkPrevState = null;
+const W_MODALS = ['modal-draw', 'modal-reveal', 'modal-hippo', 'modal-over', 'modal-bell'];
+
+function walkStart() {
+  walkPrevState = state;
+  walkOn = true;
+  $('walk').classList.remove('hidden');
+  show('game');
+  walkGo(0);
+}
+function walkEnd() {
+  walkOn = false;
+  $('walk').classList.add('hidden');
+  W_MODALS.forEach(id => $(id).classList.add('hidden'));
+  drawnCard = null; selHalf = null; selHippoIdx = null;
+  lastRevealKey = ''; lastDealKey = '';
+  state = walkPrevState;
+  if (state) render(); else show('join');
+}
+function walkGo(i) {
+  walkIdx = Math.max(0, Math.min(WALK.length - 1, i));
+  // rebuilt from step 0 every time, so stepping backwards is always exact
+  const s = wBase();
+  for (let k = 0; k <= walkIdx; k++) if (WALK[k].run) WALK[k].run(s);
+  W_MODALS.forEach(id => $(id).classList.add('hidden'));
+  drawnCard = null; selHalf = null; selHippoIdx = null;
+  lastRevealKey = '';                                    // let the sheet reopen
+  state = s;
+  lastDealKey = s.room + ':' + s.round + ':' + s.phase;   // no deal animation
+  render();
+  const step = WALK[walkIdx];
+  $('walk-title').textContent = step.t;
+  $('walk-body').innerHTML = step.b;
+  $('walk-count').textContent = 'STEP ' + (walkIdx + 1) + ' / ' + WALK.length;
+  $('walk-dots').innerHTML = WALK.map((_, k) =>
+    '<span class="wdot' + (k === walkIdx ? ' on' : '') + '"></span>').join('');
+  $('walk-prev').disabled = walkIdx === 0;
+  $('walk-next').textContent = walkIdx === WALK.length - 1 ? 'Play →' : 'Next ›';
+  const el = step.sel ? document.querySelector(step.sel) : null;
+  if (el) el.scrollIntoView({ block: 'center' });
+  // paint straight away so the note never flashes in the wrong place, then
+  // again next frame to settle any reflow. Not rAF-only: a backgrounded tab
+  // never fires it, and the walkthrough would sit there unpositioned.
+  walkPaint(step);
+  requestAnimationFrame(() => walkPaint(step));
+}
+// spotlight the live element, then hang the note off it
+function walkPaint(step) {
+  const wrap = $('walk'), ring = $('walk-ring'), note = $('walk-note'), caret = $('walk-caret');
+  const el = step.sel ? document.querySelector(step.sel) : null;
+  wrap.classList.toggle('nospot', !el);
+  note.classList.remove('above', 'below');
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const nw = note.offsetWidth, nh = note.offsetHeight;
+  if (!el) {
+    caret.style.display = 'none';
+    note.style.left = Math.round((vw - nw) / 2) + 'px';
+    note.style.top = Math.round((vh - nh) / 2) + 'px';
+    return;
+  }
+  const r = el.getBoundingClientRect();
+  ring.style.left = (r.left - 6) + 'px';
+  ring.style.top = (r.top - 6) + 'px';
+  ring.style.width = (r.width + 12) + 'px';
+  ring.style.height = (r.height + 12) + 'px';
+  // A target taller than about half the screen (the whole table, say) has no
+  // room for a note beside it: pin the note to the foot of the screen and drop
+  // the caret, rather than clamping it on top of what it is describing.
+  const tall = r.height > vh * 0.55;
+  let top;
+  if (!tall && r.bottom + 14 + nh <= vh - 8) {
+    note.classList.add('below');
+    top = r.bottom + 14;
+  } else if (!tall && r.top - 14 - nh >= 8) {
+    note.classList.add('above');
+    top = r.top - 14 - nh;
+  } else {
+    top = vh - nh - 12;
+  }
+  const anchored = note.classList.contains('above') || note.classList.contains('below');
+  const left = anchored
+    ? Math.max(10, Math.min(Math.round(r.left + r.width / 2 - nw / 2), vw - nw - 10))
+    : Math.round((vw - nw) / 2);
+  note.style.left = left + 'px';
+  note.style.top = Math.round(top) + 'px';
+  caret.style.display = anchored ? '' : 'none';
+  if (anchored) {
+    caret.style.left = Math.max(12, Math.min(r.left + r.width / 2 - left - 10, nw - 32)) + 'px';
+  }
+}
+
+$('btn-walk').onclick = () => walkStart();
+$('walk-x').onclick = () => walkEnd();
+$('walk-prev').onclick = () => walkGo(walkIdx - 1);
+$('walk-next').onclick = () => {
+  if (walkIdx === WALK.length - 1) walkEnd(); else walkGo(walkIdx + 1);
+};
+$('walk-shield').onclick = () => { if (walkIdx < WALK.length - 1) walkGo(walkIdx + 1); };
+window.addEventListener('keydown', (e) => {
+  if (!walkOn) return;
+  if (e.key === 'ArrowRight' || e.key === ' ') walkGo(walkIdx + 1);
+  else if (e.key === 'ArrowLeft') walkGo(walkIdx - 1);
+  else if (e.key === 'Escape') walkEnd();
+});
+window.addEventListener('resize', () => { if (walkOn) walkPaint(WALK[walkIdx]); });
+// test hook (?walk=6): jump straight to a step
+try {
+  const wi = parseInt(new URLSearchParams(location.search).get('walk') || '', 10);
+  if (!isNaN(wi)) { walkStart(); walkGo(wi); }
+} catch (e) { }
+
 // ---------- boot ----------
+$('btn-ring').innerHTML = window.AnimalArt.shape('bell', 44);
 paintBuildTag();
 connect();

@@ -12,7 +12,7 @@ Rules enforced here:
   - Deck composition from section 4.2 (34 animal + 3 hippo = 37)
   - Stock counts BOTH halves; orders count only the chosen half
   - Hippo-as-order flips a face-up order face-down (or discards if none)
-  - Hippo-as-stock: Bo cancels count==3 orders, Pip cancels fox orders, Dozy nothing
+  - Hippo-as-stock: Bo cancels count==3 orders, Pip cancels zebra orders, Dozy nothing
   - Verdict is per-animal-type oversell; blamed = last face-up orderer if
     oversold else ringer
   - Tokens 1..7 in order, game ends when any total >= 7, fewest wins
@@ -20,26 +20,26 @@ Rules enforced here:
 
 import random
 
-ANIMALS = ("toucan", "fox", "leopard", "elephant")
+ANIMALS = ("toucan", "zebra", "crocodile", "lion")
 HIPPOS = ("bo", "dozy", "pip")
 
 # (halfA animal, halfA count, halfB animal, halfB count, copies)
 # Half A is always the single (count==1) per section 4 load-bearing rule.
 DECK_CONFIG = [
-    ("toucan", 1, "fox", 2, 4),
-    ("toucan", 1, "fox", 3, 3),
-    ("toucan", 1, "leopard", 2, 3),
-    ("toucan", 1, "leopard", 3, 2),
-    ("toucan", 1, "elephant", 2, 2),
-    ("toucan", 1, "elephant", 3, 1),
-    ("fox", 1, "toucan", 2, 4),
-    ("fox", 1, "toucan", 3, 3),
-    ("fox", 1, "leopard", 2, 2),
-    ("leopard", 1, "toucan", 2, 3),
-    ("leopard", 1, "toucan", 3, 2),
-    ("leopard", 1, "fox", 2, 2),
-    ("elephant", 1, "toucan", 2, 2),
-    ("elephant", 1, "fox", 2, 1),
+    ("toucan", 1, "zebra", 2, 4),
+    ("toucan", 1, "zebra", 3, 3),
+    ("toucan", 1, "crocodile", 2, 3),
+    ("toucan", 1, "crocodile", 3, 2),
+    ("toucan", 1, "lion", 2, 2),
+    ("toucan", 1, "lion", 3, 1),
+    ("zebra", 1, "toucan", 2, 4),
+    ("zebra", 1, "toucan", 3, 3),
+    ("zebra", 1, "crocodile", 2, 2),
+    ("crocodile", 1, "toucan", 2, 3),
+    ("crocodile", 1, "toucan", 3, 2),
+    ("crocodile", 1, "zebra", 2, 2),
+    ("lion", 1, "toucan", 2, 2),
+    ("lion", 1, "zebra", 2, 1),
 ]
 
 HIPPO_CARDS = [
@@ -206,7 +206,7 @@ def effective_orders(state):
         cancelled = False
         if "bo" in hippos and o["count"] == 3:
             cancelled = True
-        if "pip" in hippos and o["animal"] == "fox":
+        if "pip" in hippos and o["animal"] == "zebra":
             cancelled = True
         if not cancelled:
             eff.append(o)
@@ -265,9 +265,9 @@ def resolve_bell(state, ringer_id, rule_mode=None):
     # but hippo-cancelled-by-stock still sit face-up until this step.
     if not face_up:
         raise ValueError("Bell is illegal with no face-up orders")
-    mode = rule_mode or state.get("ruleMode", "classic")
+    mode = rule_mode or state.get("ruleMode", DEFAULT_RULE_MODE)
     if mode not in RULE_MODES:
-        mode = "classic"
+        mode = DEFAULT_RULE_MODE
     eff = effective_orders(state)
     st = stock_tally(state)
     ot = {a: 0 for a in ANIMALS}
@@ -420,7 +420,7 @@ def redact_for_viewer(state, viewer_id):
         "pendingDrawCardId": pd["cardId"] if (pd and pd["by"] == viewer_id) else None,
         "activeChoosing": bool(pd),
         "turnDeadline": state.get("turnDeadline"),
-        "ruleMode": state.get("ruleMode", "classic"),
+        "ruleMode": state.get("ruleMode", DEFAULT_RULE_MODE),
         "noRingFor": state.get("noRingFor"),
         "noRingBy": state.get("noRingBy"),
         "winners": list(state.get("winners", [])),

@@ -7,6 +7,7 @@ import socket
 import struct
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 
@@ -100,6 +101,148 @@ class WS:
         except (socket.timeout, ConnectionError):
             pass
         return last, None
+
+
+def check_broadcast_payloads_are_never_torn():
+    """A broadcast must finish each payload while it still holds the room lock.
+
+    redact_for_viewer reads state["phase"] at the top and again at the bottom,
+    so serialising it after the lock was released could splice two different
+    moments together — and the nastiest splice LEAKS: it reads phase "reveal"
+    (open everything), a new round is dealt underneath it, and the frame goes
+    out as phase "playing" carrying the viewer's own fresh stock card.
+
+    Thread switches are forced to be frequent, because at CPython's 5ms default
+    a redaction is almost never preempted and the race hides.
+    """
+    sys.path.insert(0, BASE)
+    import server
+    from shared.game_logic import new_room_state, setup_round, resolve_bell
+
+    torn, delivered, phases = [], [0], set()
+
+    class Capture:
+        def __init__(self, pid):
+            self.player_id, self.room_code, self.closed = pid, "TORN", False
+
+        def _check(self, msg):
+            if msg.get("type") != "STATE":
+                return
+            st = msg["state"]
+            delivered[0] += 1
+            phases.add(st["phase"])
+            me = next((p for p in st["players"] if p["id"] == self.player_id), None)
+            if me is None:
+                return
+            if st["phase"] == "reveal":
+                if st.get("lastResolution") is None:
+                    torn.append("reveal with no resolution")
+                if any(p["stockCardId"] is None for p in st["players"]):
+                    torn.append("reveal with a stock card still hidden")
+            elif st["phase"] == "playing" and me["stockCardId"] is not None:
+                torn.append("LEAK: own stock card sent during play")
+
+        def send_json(self, obj):
+            self._check(json.loads(json.dumps(obj)))
+
+        def send_raw(self, data):
+            n = data[1] & 0x7F
+            off = 2 + (2 if n == 126 else 8 if n == 127 else 0)
+            self._check(json.loads(data[off:].decode("utf-8")))
+
+    st = new_room_state("TORN", "p0", "P0")
+    for i in (1, 2):
+        st["players"].append({"id": f"p{i}", "name": f"P{i}", "seat": i,
+                              "stockCardId": None, "tokens": [],
+                              "connected": True, "ai": False})
+    setup_round(st)
+    room = {"state": st, "lock": threading.Lock(), "lastActive": time.time(),
+            "conns": {p["id"]: [Capture(p["id"])] for p in st["players"]}}
+    with server.rooms_lock:
+        server.rooms["TORN"] = room
+
+    stop = threading.Event()
+
+    def mutator():
+        while not stop.is_set():
+            with room["lock"]:          # exactly how the real handlers mutate
+                s = room["state"]
+                if s["phase"] != "playing":
+                    setup_round(s)
+                    continue
+                cid = s["deck"].pop(0) if s["deck"] else None
+                if cid and "halves" in s["cards"][cid]:
+                    h = s["cards"][cid]["halves"][0]
+                    s["orders"].append({"cardId": cid, "halfIndex": 0, "faceUp": True,
+                                        "placedBy": "p1", "animal": h["animal"],
+                                        "count": h["count"], "flippedBy": [],
+                                        "discarded": dict(s["cards"][cid]["halves"][1])})
+                if s["orders"]:
+                    try:
+                        resolve_bell(s, "p0")
+                    except ValueError:
+                        pass
+
+    def caster():
+        while not stop.is_set():
+            server.broadcast("TORN")
+
+    old_interval = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    threads = [threading.Thread(target=mutator, daemon=True)]
+    threads += [threading.Thread(target=caster, daemon=True) for _ in range(3)]
+    try:
+        for t in threads:
+            t.start()
+        time.sleep(2.0)
+    finally:
+        stop.set()
+        for t in threads:
+            t.join(timeout=5)
+        sys.setswitchinterval(old_interval)
+        with server.rooms_lock:
+            server.rooms.pop("TORN", None)
+
+    # the test is worthless if it never actually created contention
+    assert delivered[0] > 300, f"only {delivered[0]} payloads — no real contention"
+    assert {"playing", "reveal"} <= phases, f"phase never flipped: {phases}"
+    assert not torn, (f"{len(torn)} torn payloads out of {delivered[0]}, e.g. "
+                      f"{sorted(set(torn))[:3]}")
+    print(f"no torn payloads across {delivered[0]} broadcasts under contention")
+
+
+def check_dead_peer_does_not_stall_the_room():
+    """A phone that locks stops reading and its TCP window fills. broadcast()
+    writes to players in turn, so an unbounded send to that phone freezes
+    everyone else's game until the socket's 120s timeout — measured at 118s
+    before SEND_TIMEOUT existed. The send must give up long before that.
+    """
+    sys.path.insert(0, BASE)
+    import server
+
+    a, b = socket.socketpair()
+    try:
+        a.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
+        b.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2048)
+        a.settimeout(120)   # what handle_tcp puts on a live websocket
+        conn = server.WSConn(a)
+        payload = {"type": "STATE", "state": {"filler": "x" * 20000}}
+        t0 = time.time()
+        while not conn.closed and time.time() - t0 < 60:
+            conn.send_json(payload)     # b never reads a byte
+        elapsed = time.time() - t0
+        assert conn.closed, "sender never gave up on a peer that stopped reading"
+        budget = server.SEND_TIMEOUT + server.SEND_LOCK_WAIT + 5
+        assert elapsed < budget, (
+            f"send to a dead peer took {elapsed:.1f}s, over budget {budget:.1f}s "
+            f"— one locked phone can stall a whole room")
+        print(f"dead peer dropped after {elapsed:.1f}s (not the 120s socket timeout)")
+    finally:
+        for sk in (a, b):
+            try:
+                sk.close()
+            except OSError:
+                pass
 
 
 def main():
@@ -270,7 +413,7 @@ def main():
                 if o.get("discarded"):
                     assert o["discarded"]["animal"] != o["animal"]
                     assert o["discarded"]["animal"] in (
-                        "toucan", "fox", "leopard", "elephant")
+                        "toucan", "zebra", "crocodile", "lion")
                     saw_discarded = True
             # ring with active player (must have a face-up order by now).
             # a fresh Hippo blocks the bell: take once to lift it, then ring.
@@ -317,7 +460,7 @@ def main():
             assert st["phase"] in ("reveal", "gameOver"), st["phase"]
             r = st["lastResolution"]
             assert r and "oversold" in r and "blamedId" in r and "tokenGiven" in r
-            assert set(r["stockTally"]) == {"toucan", "fox", "leopard", "elephant"}
+            assert set(r["stockTally"]) == {"toucan", "zebra", "crocodile", "lion"}
             print(f"round {rnd}: oversold={r['oversold']} blamed={r['blamedId']} token={r['tokenGiven']} phase={st['phase']}")
             if st.get("loserId"):
                 # final round: audit first, winning message only via RESULTS
@@ -653,6 +796,9 @@ def main():
                 break
         assert acted, "solo bot never acted"
         print("solo mode OK: bot played its turn alone")
+
+        check_broadcast_payloads_are_never_torn()
+        check_dead_peer_does_not_stall_the_room()
 
         print("E2E PASS")
     finally:

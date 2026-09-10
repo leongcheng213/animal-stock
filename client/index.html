@@ -44,13 +44,11 @@
 
     <div id="panel-friends">
       <button id="btn-create" class="btn primary big">Create room</button>
-
-      <div class="or">— or join with a code —</div>
-
-      <label class="fld"><span>Room code (4 letters)</span>
+      <button id="btn-join" class="btn big">Join room</button>
+      <!-- the code box only appears once Join room is tapped -->
+      <label class="fld hidden" id="code-field"><span>Room code (4 letters)</span>
         <input id="in-code" maxlength="4" placeholder="e.g. KQZT" autocapitalize="characters" autocomplete="off">
       </label>
-      <button id="btn-join" class="btn big">Join room</button>
     </div>
 
     <div id="panel-bots" class="hidden">
@@ -66,10 +64,7 @@
       <button id="btn-start-bots" class="btn primary big">Start vs bots</button>
     </div>
 
-    <details class="how">
-      <summary>How to play (30 sec)</summary>
-      <button id="btn-tour" class="btn primary big">▶ Guided picture tour</button>
-    </details>
+    <button id="btn-walk" class="btn primary big">▶ How to play</button>
     <p id="join-err" class="err"></p>
     <p id="buildtag" class="buildtag"></p>
   </section>
@@ -110,7 +105,7 @@
     </header>
 
     <div id="table-wrap">
-      <button id="btn-ring" class="bellbtn">🔔</button>
+      <button id="btn-ring" class="bellbtn" aria-label="ring the bell"></button>
       <div id="hud-status" class="status overlay">…</div>
 
       <div class="board-label onfelt stocks-label">STOCKS — everyone else's (yours is face-down)</div>
@@ -221,6 +216,24 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
+
+<!-- guided walkthrough: coach-marks pinned to the real board -->
+<div id="walk" class="hidden">
+  <div id="walk-shield"></div>
+  <div id="walk-ring"></div>
+  <div id="walk-note">
+    <div id="walk-caret" class="walk-caret"></div>
+    <button id="walk-x" title="Close">✕</button>
+    <span id="walk-count"></span>
+    <h3 id="walk-title"></h3>
+    <p id="walk-body"></p>
+    <div class="walk-nav">
+      <button id="walk-prev">‹ Back</button>
+      <div id="walk-dots"></div>
+      <button id="walk-next">Next ›</button>
+    </div>
+  </div>
+</div>
 
 <!-- guided picture tour -->
 <div id="modal-tour" class="modal hidden tour">

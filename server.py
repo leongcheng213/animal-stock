@@ -36,6 +36,7 @@ import mimetypes
 import os
 import random
 import secrets
+import select
 import socket
 import struct
 import threading
@@ -50,11 +51,26 @@ import sys
 sys.path.insert(0, BASE_DIR)
 from shared.game_logic import (
     setup_round, resolve_bell, redact_for_viewer, make_room_code,
-    is_hippo, RULE_MODES, ANIMALS, hippo_flip_order,
+    is_hippo, RULE_MODES, DEFAULT_RULE_MODE, ANIMALS, hippo_flip_order,
 )
 
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-TURN_SECONDS = 15
+
+# A phone that locks or walks out of Wi-Fi stops reading; its TCP window fills
+# and a send to it blocks. broadcast() writes to players in turn, so one dead
+# handset used to hold up everyone else's update for the socket's whole 120s
+# timeout. Sends get their own, much shorter budget instead: miss it and that
+# connection is dropped (the client reconnects on its own and STATE is a full
+# snapshot, so nothing is lost but the dead socket).
+SEND_TIMEOUT = 5.0      # seconds to get one frame out before giving up on a peer
+SEND_LOCK_WAIT = 0.5    # seconds to wait behind another thread writing to it
+TURN_SECONDS = 30
+# Taking a card and choosing its half are two separate decisions, so they get
+# two separate clocks: drawing restarts the countdown rather than eating into
+# whatever is left of the turn. Counting four species under a shared 15s clock
+# was too tight for a new player. Kept equal so the client's ring animation
+# has one window length to draw.
+CHOOSE_SECONDS = TURN_SECONDS
 MAX_PLAYERS = 6
 MIN_PLAYERS = 2
 
@@ -70,6 +86,25 @@ rooms_lock = threading.Lock()
 
 # ---------------------------------------------------------------- websocket
 
+def ws_text_frame(obj):
+    """Encode one JSON message as a finished websocket text frame.
+
+    Returning bytes matters: once encoded, the payload can no longer be
+    changed by another thread mutating the state it came from, so a frame
+    built under a room's lock stays consistent after the lock is released.
+    """
+    data = json.dumps(obj).encode("utf-8")
+    header = bytes([0x81])
+    n = len(data)
+    if n < 126:
+        header += bytes([n])
+    elif n < 65536:
+        header += bytes([126]) + struct.pack(">H", n)
+    else:
+        header += bytes([127]) + struct.pack(">Q", n)
+    return header + data
+
+
 class WSConn:
     def __init__(self, sock):
         self.sock = sock
@@ -78,30 +113,47 @@ class WSConn:
         self.player_id = None
         self.room_code = None
 
-    def send_json(self, obj):
-        data = json.dumps(obj).encode("utf-8")
-        header = bytes([0x81])
-        n = len(data)
-        if n < 126:
-            header += bytes([n])
-        elif n < 65536:
-            header += bytes([126]) + struct.pack(">H", n)
-        else:
-            header += bytes([127]) + struct.pack(">Q", n)
-        with self.send_lock:
+    def _write_frame(self, data):
+        """Write one frame under SEND_TIMEOUT. Raises OSError if the peer will
+        not take it in time — which leaves a partial frame on the wire, so the
+        caller must drop the connection rather than send anything more."""
+        view = memoryview(data)
+        deadline = time.monotonic() + SEND_TIMEOUT
+        while view:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise socket.timeout("send timed out")
+            _, writable, _ = select.select((), (self.sock,), (), remaining)
+            if not writable:
+                continue
+            sent = self.sock.send(view)
+            if sent <= 0:
+                raise OSError("peer closed")
+            view = view[sent:]
+
+    def send_raw(self, data):
+        """Send one already-framed message, without blocking the caller behind
+        a peer that has stopped reading."""
+        if self.closed:
+            return
+        # a thread already stuck writing to this socket must not hold up the
+        # room: skip this frame rather than queue behind it
+        if not self.send_lock.acquire(timeout=SEND_LOCK_WAIT):
+            return
+        try:
             if self.closed:
                 return
-            try:
-                self.sock.sendall(header + data)
-            except OSError:
-                self.closed = True
+            self._write_frame(data)
+        except OSError:
+            self.close()
+        finally:
+            self.send_lock.release()
+
+    def send_json(self, obj):
+        self.send_raw(ws_text_frame(obj))
 
     def send_ping(self):
-        with self.send_lock:
-            try:
-                self.sock.sendall(bytes([0x89, 0x00]))
-            except OSError:
-                self.closed = True
+        self.send_raw(bytes([0x89, 0x00]))
 
     def close(self):
         self.closed = True
@@ -159,17 +211,27 @@ def broadcast(room_code):
     room = get_room(room_code)
     if not room:
         return
+    targets = []
     with room["lock"]:
         state = room["state"]
-        targets = []
+        # Redact AND encode in here. A redacted payload still shares mutable
+        # pieces with the live state (an order's flippedBy list, the
+        # lastResolution dict), so serialising it after the lock was released
+        # could ship a torn frame — or trip over a dict that changed size
+        # mid-encode. One frame per player, reused across their sockets.
         for pid, conns in room["conns"].items():
-            for c in list(conns):
-                if not c.closed:
-                    targets.append((pid, c))
+            live = [c for c in conns if not c.closed]
+            if not live:
+                continue
+            frame = ws_text_frame({"type": "STATE",
+                                   "state": redact_for_viewer(state, pid)})
+            for c in live:
+                targets.append((c, frame))
         room["lastActive"] = time.time()
-    for pid, conn in targets:
+    # sending stays outside the lock — a slow peer must never hold the room
+    for conn, frame in targets:
         try:
-            conn.send_json({"type": "STATE", "state": redact_for_viewer(state, pid)})
+            conn.send_raw(frame)
         except Exception:
             pass
 
@@ -201,6 +263,12 @@ def reset_turn_timer(state):
     state["turnDeadline"] = time.time() + TURN_SECONDS
 
 
+def reset_choice_timer(state):
+    """Fresh clock for picking a half / a Hippo target. The draw stops the
+    turn clock draining into the choice: each decision gets its own window."""
+    state["turnDeadline"] = time.time() + CHOOSE_SECONDS
+
+
 # deal/shuffle animation plays on every client at round start — the first
 # turn's clock starts only once it has finished
 DEAL_SECONDS = 3.0
@@ -218,6 +286,41 @@ def reset_round_timer(state):
 
 AI_THINK_MIN, AI_THINK_MAX = 2.0, 4.0
 MAX_HIDDEN_PER_ANIMAL = 3  # most of one animal a hidden stock card can hold
+
+# ---- bluff-calling tunables ------------------------------------------------
+# A bot that rings only on a *provable* oversell never bluffs, so bot-heavy
+# games drift to a deck-out instead of ending in an argument. These give bots a
+# small, tunable willingness to call an oversell they only believe.
+#
+# BLUFF_RARITY is how far a bot trusts a gap it cannot prove, per species: the
+# odds a hidden stock card is NOT quietly covering it. Driven by how much of the
+# deck each animal occupies (34 animal cards, 113 animals in total):
+#
+#     toucan     48  (42.5%)   common — a hidden card very often holds toucans
+#     zebra      32  (28.3%)
+#     crocodile  23  (20.4%)
+#     lion       10  ( 8.8%)   rare — a lion oversell is usually real
+#
+# Set BLUFF_BASE = 0.0 to switch bluffing off entirely and get the old
+# provable-only bot back.
+BLUFF_RARITY = {"toucan": 0.15, "zebra": 0.30, "crocodile": 0.50, "lion": 0.85}
+BLUFF_BASE = 0.45        # scales every unprovable call
+BLUFF_GAP_BONUS = 0.20   # added per animal of gap beyond the first
+BLUFF_MAX = 0.75         # never a certainty — bots have to be wrong sometimes
+
+
+def _bluff_chance(animal, gap):
+    """Odds a bot calls an oversell it cannot prove.
+
+    `gap` is how far the face-up orders exceed the stock this bot can SEE —
+    which excludes its own card, so a small gap is often just its own card
+    quietly covering the board. Rare animals are trusted more: there are only
+    ten lions in the deck, so a lion gap is rarely a mirage.
+    """
+    if gap <= 0:
+        return 0.0
+    chance = BLUFF_BASE * BLUFF_RARITY.get(animal, 0.3) + BLUFF_GAP_BONUS * (gap - 1)
+    return max(0.0, min(BLUFF_MAX, chance))
 
 
 def _visible_stock(state, pid):
@@ -252,8 +355,14 @@ def _faceup_tally(state):
 
 
 def ai_should_ring(state, pid):
-    """Ring only when provably oversold from visible info alone —
-    and never on a post-Hippo blocked turn."""
+    """Ring when the board is provably oversold from visible info alone, and
+    sometimes when it is merely likely (see _bluff_chance). Never on a
+    post-Hippo blocked turn.
+
+    Every input here is public: face-up orders and the stock cards this bot can
+    see. It never looks at its own stockCardId — the hidden card is exactly the
+    doubt a bluff-call is gambling on.
+    """
     if state.get("noRingFor") == pid:
         return False
     face = [o for o in state["orders"] if o["faceUp"]]
@@ -261,21 +370,26 @@ def ai_should_ring(state, pid):
         return False
     vt = _visible_stock(state, pid)
     ft = _faceup_tally(state)
-    if (state.get("ruleMode", "classic")) == "last_only":
-        a = face[-1]["animal"]
-        return ft[a] > vt[a] + MAX_HIDDEN_PER_ANIMAL
-    return any(ft[a] > vt[a] + MAX_HIDDEN_PER_ANIMAL for a in ANIMALS)
+    if (state.get("ruleMode", DEFAULT_RULE_MODE)) == "last_only":
+        checked = [face[-1]["animal"]]
+    else:
+        checked = list(ANIMALS)
+    # provable: bigger than any single hidden card could be covering
+    if any(ft[a] > vt[a] + MAX_HIDDEN_PER_ANIMAL for a in checked):
+        return True
+    # believable but unprovable: call it sometimes, readily on rare animals
+    return any(random.random() < _bluff_chance(a, ft[a] - vt[a]) for a in checked)
 
 
 def _ai_pick_half(state, pid, card):
     """Choose the half with the most headroom over visible stock."""
     vt = _visible_stock(state, pid)
     ft = _faceup_tally(state)
-    rooms = [(vt[h["animal"]] + MAX_HIDDEN_PER_ANIMAL) - (ft[h["animal"]] + h["count"])
-             for h in card["halves"]]
-    if rooms[0] == rooms[1]:
+    headroom = [(vt[h["animal"]] + MAX_HIDDEN_PER_ANIMAL) - (ft[h["animal"]] + h["count"])
+                for h in card["halves"]]
+    if headroom[0] == headroom[1]:
         return random.randint(0, 1)
-    return 0 if rooms[0] > rooms[1] else 1
+    return 0 if headroom[0] > headroom[1] else 1
 
 
 def _ai_pick_flip(state):
@@ -687,7 +801,8 @@ def handle_message(conn, msg):
             else:
                 cid = state["deck"].pop(0)
                 state["pendingDraw"] = {"by": pid, "cardId": cid}
-                # no timer reset: take + pick share the turn's one countdown
+                # the picker is its own decision — give it its own countdown
+                reset_choice_timer(state)
                 need_drawn = True
         broadcast(room_code)
         if need_drawn:
@@ -941,11 +1056,9 @@ def handle_ws(sock, conn):
             if opcode == 0x8:  # close
                 break
             if opcode == 0x9:  # ping -> pong
-                with conn.send_lock:
-                    try:
-                        sock.sendall(bytes([0x8A, 0x00]))
-                    except OSError:
-                        break
+                conn.send_raw(bytes([0x8A, 0x00]))
+                if conn.closed:
+                    break
                 continue
             if opcode == 0xA:  # pong
                 continue
