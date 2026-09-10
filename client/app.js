@@ -6,8 +6,17 @@ function paintBuildTag() {
   if (el) el.textContent = `app v${APP_BUILD}` + (serverVer ? ` · server v${serverVer}` : '');
 }
 const $ = (id) => document.getElementById(id);
-const screens = { join: $('screen-join'), lobby: $('screen-lobby'), game: $('screen-game') };
+const screens = { splash: $('screen-splash'), join: $('screen-join'), lobby: $('screen-lobby'), game: $('screen-game') };
 function show(name) { for (const k in screens) screens[k].classList.toggle('active', k === name); }
+
+// splash: floating pink pig, tap to jump in
+$('pig-splash').innerHTML = window.AnimalArt.shape('hippo', 180, 'bo');
+$('screen-splash').onclick = () => {
+  const s = $('screen-splash');
+  if (s.classList.contains('jump')) return;
+  s.classList.add('jump');
+  setTimeout(() => { s.classList.remove('jump'); show('join'); }, 450);
+};
 
 let ws = null, wsOk = false, reconnectTries = 0;
 let playerId = sessionStorage.getItem('as_pid') || null;

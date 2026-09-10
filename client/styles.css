@@ -9,6 +9,17 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 #app{max-width:480px;margin:0 auto;min-height:100dvh;position:relative;padding-bottom:24px;}
 .screen{display:none;padding:16px 14px 28px;}
 .screen.active{display:block;}
+/* splash: big floating pink pig, tap to jump in */
+.screen.splash.active{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100dvh;cursor:pointer;padding:0;}
+#pig-splash{animation:floaty 2.4s ease-in-out infinite;filter:drop-shadow(0 10px 12px rgba(0,0,0,.25));}
+#pig-splash svg{width:min(220px,60vw);height:auto;}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(-2deg);}50%{transform:translateY(-18px) rotate(2deg);}}
+#screen-splash.jump #pig-splash{animation:jumpout .45s ease-in forwards;}
+@keyframes jumpout{35%{transform:scale(1.15) translateY(-12px);opacity:1;}
+  100%{transform:scale(2.4) translateY(-60px);opacity:0;}}
+.tap-hint{color:var(--muted);font-size:14px;letter-spacing:3px;animation:hintpulse 2.4s ease-in-out infinite;}
+@keyframes hintpulse{0%,100%{opacity:.45;}50%{opacity:1;}}
 .conn{position:fixed;top:8px;right:10px;z-index:99;font-size:14px;}
 /* turn countdown frame: stroked SVG path tracing the target's rounded rect
    clockwise from the top-right corner, round caps. Red flicker under 5s.
