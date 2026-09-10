@@ -1,0 +1,7 @@
+# Render.com blueprint — hosting dashboard will offer "New from Blueprint".
+services:
+  - type: web
+    name: animal-stock
+    runtime: docker
+    plan: free
+    healthCheckPath: /

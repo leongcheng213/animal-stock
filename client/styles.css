@@ -1,0 +1,264 @@
+:root{
+  --bg:#FAF6EF; --ink:#22303C; --muted:#8A7F70; --card:#FFFDF6;
+  --accent:#FF3B5C; --good:#2E9E5B; --gold:#C9A227;
+  --btn-h:56px; --rad:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;}
+#app{max-width:480px;margin:0 auto;min-height:100dvh;position:relative;padding-bottom:24px;}
+.screen{display:none;padding:16px 14px 28px;}
+.screen.active{display:block;}
+.conn{position:fixed;top:8px;right:10px;z-index:99;font-size:14px;}
+/* turn countdown frame: stroked SVG path tracing the target's rounded rect
+   clockwise from the top-right corner, round caps. Red flicker under 5s.
+   Explicit pixel geometry — no dashes, gradients or angle tricks. */
+#turnframe{position:fixed;z-index:45;pointer-events:none;}
+#turnframe svg{width:100%;height:100%;display:block;overflow:visible;}
+#turnframe path{fill:none;stroke:#2E9E5B;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;}
+#turnframe.urgent path{stroke:#FF3B5C;}
+#turnframe.urgent{animation:urgentblink .55s linear infinite;}
+.conn.online{color:var(--good);} .conn.offline{color:var(--accent);}
+
+.logo-row{display:flex;align-items:center;gap:10px;margin:14px 0 4px;}
+.logo-row h1{font-size:30px;margin:0;letter-spacing:.5px;}
+.logo-hippo{font-size:40px;}
+.tagline{color:var(--muted);margin:0 0 16px;line-height:1.45;font-size:14px;}
+.credit{font-size:12px;}
+.fld{display:block;margin:12px 0;}
+.fld span{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;}
+.fld input{width:100%;height:var(--btn-h);font-size:20px;padding:0 14px;border:2px solid #E5DCCB;
+  border-radius:var(--rad);background:var(--card);color:var(--ink);text-transform:none;}
+#in-code{text-transform:uppercase;letter-spacing:6px;text-align:center;font-weight:700;}
+.btn{border:0;border-radius:var(--rad);min-height:var(--btn-h);font-size:18px;font-weight:700;
+  padding:12px 18px;background:#EFE7D6;color:var(--ink);cursor:pointer;width:100%;}
+.btn:active{transform:scale(.98);}
+.btn.primary{background:var(--ink);color:#fff;}
+.btn.danger{background:var(--accent);color:#fff;}
+.btn.ghost{background:transparent;border:2px solid #E5DCCB;margin-top:10px;}
+.btn.big{font-size:19px;}
+.btn.half{width:48%;}
+.btn:disabled{opacity:.4;}
+.or{text-align:center;color:var(--muted);margin:14px 0;font-size:14px;}
+.how{margin-top:18px;background:var(--card);border:2px solid #EFE7D6;border-radius:var(--rad);padding:10px 14px;font-size:14px;}
+.how ol{margin:8px 0 8px 18px;padding:0;line-height:1.5;}
+.err{color:var(--accent);min-height:20px;font-size:14px;}
+.buildtag{color:var(--muted);font-size:11px;text-align:center;min-height:14px;}
+
+.roomcode-wrap{text-align:center;margin:8px 0 12px;}
+.roomcode-wrap .lbl{font-size:12px;letter-spacing:2px;color:var(--muted);}
+.roomcode{font-size:52px;font-weight:900;letter-spacing:12px;margin:4px 0 0 12px;}
+.plist{display:flex;flex-direction:column;gap:8px;margin:12px 0 16px;}
+.prow{background:var(--card);border:2px solid #EFE7D6;border-radius:var(--rad);
+  padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:16px;}
+.prow .toks{font-size:13px;color:var(--muted);}
+.hint{color:var(--muted);font-size:13px;line-height:1.5;}
+
+#hud{position:sticky;top:0;z-index:20;background:var(--bg);padding:8px 2px 6px;}
+.hud-top{display:flex;justify-content:space-between;align-items:center;}
+.pill{background:var(--ink);color:#fff;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:700;}
+.iconbtn{border:2px solid #E5DCCB;background:var(--card);border-radius:10px;font-size:18px;
+  min-width:44px;min-height:36px;cursor:pointer;}
+.status{font-size:15px;font-weight:700;min-height:22px;}
+
+/* ---- unified game table: one flat felt background, everything on it ---- */
+.screen.game-screen.active{display:flex;flex-direction:column;min-height:100dvh;padding:10px 10px calc(10px + env(safe-area-inset-bottom));}
+#hud{padding:2px 2px 6px;}
+#table-wrap{position:relative;flex:1 0 auto;display:flex;flex-direction:column;
+  padding:10px 10px 12px;border-radius:18px;background:#E7D8BC;
+  border:2px solid #D8C9A8;box-shadow:inset 0 0 40px rgba(120,90,40,.18);}
+.hidden{display:none !important;}
+
+/* ring bell: just the bell, pinned to the table's own top-right corner —
+   inside the boundary, clear of the status pill */
+#table-wrap > .bellbtn{position:absolute;z-index:4;top:6px;right:6px;background:none;border:0;
+  font-size:44px;line-height:1.2;padding:6px;cursor:pointer;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));}
+#table-wrap > .bellbtn:disabled{opacity:.38;filter:grayscale(.85);animation:none;}
+#table-wrap > .bellbtn:not(:disabled){animation:ringpulse 1.6s ease-in-out infinite;}
+@keyframes ringpulse{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.1) rotate(-8deg)}}
+#table-wrap > .bellbtn.shake{animation:bellshake .5s ease-in-out;}
+@keyframes bellshake{0%,100%{transform:rotate(0)}25%{transform:rotate(-22deg) scale(1.18)}50%{transform:rotate(16deg)}75%{transform:rotate(-10deg)}}
+
+.status.overlay{align-self:center;background:rgba(34,48,60,.88);color:#fff;border-radius:999px;
+  padding:6px 14px;font-size:14px;font-weight:700;margin:2px 76px 0 0;min-height:0;text-align:center;}
+
+.board-label{font-size:11px;letter-spacing:2px;color:var(--muted);margin:12px 0 6px;}
+.board-label.onfelt{display:inline-block;background:rgba(34,48,60,.78);color:#F5EEDF;border-radius:8px;
+  padding:3px 10px;margin:10px 0 6px;align-self:flex-start;}
+.stocks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.stocks .stock{min-height:122px;display:flex;flex-direction:column;}
+.stock.hippo{cursor:pointer;border-color:var(--accent);}
+.stock.hippo .nm::after{content:' ⓘ';color:var(--accent);}
+.stocks.onfelt .stock{background:rgba(255,253,246,.95);border-color:rgba(34,48,60,.25);}
+.stock{background:var(--card);border:2px solid #EFE7D6;border-radius:12px;padding:6px;text-align:center;}
+.tchips{display:flex;gap:3px;justify-content:center;align-items:center;margin-top:4px;flex-wrap:wrap;min-height:18px;}
+.tchip{background:var(--ink);color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:1px 6px;}
+.ttotal{font-size:13px;font-weight:900;color:var(--accent);}
+.tnone{font-size:11px;color:var(--muted);}
+.stock.me{border-style:dashed;opacity:.9;}
+.stock .nm{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stock .cd{display:flex;justify-content:center;gap:2px;min-height:52px;flex:1;align-items:center;flex-wrap:wrap;}
+.halfchip{border-radius:8px;padding:2px 4px;margin:1px;background:#F5EEDF;}
+.halfchip .anicons{display:inline-flex;gap:1px;align-items:center;}
+.halfchip small{display:block;font-size:10px;color:var(--muted);}
+.halfchip.dimhalf{opacity:.35;filter:grayscale(.7);}
+.orders{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:70px;}
+.orders.drawlist{display:flex;flex-direction:column;gap:8px;align-items:center;}
+/* order history: one vertical middle column — picked half full, unpicked faded left */
+.orders.onfelt{display:flex;flex-direction:column;gap:8px;align-items:center;}.orders.onfelt .orow,.orders.drawlist .orow{display:flex;gap:8px;align-items:stretch;width:min(340px,100%);max-width:100%;}
+.orow .disc{flex:0 0 92px;min-width:0;opacity:.5;background:rgba(255,253,246,.9);
+  border:2px dashed rgba(34,48,60,.4);border-radius:12px;padding:6px 4px;text-align:center;
+  font-size:11px;color:var(--muted);}
+.orow .disc small{display:block;font-size:10px;}
+.orow .disc.empty{visibility:hidden;}
+.orow .pick{flex:1;min-width:0;background:rgba(255,253,246,.95);border:2px solid #C9C0AE;
+  border-radius:12px;padding:6px;text-align:center;position:relative;}
+.orow.down .pick{opacity:.5;filter:grayscale(1);border-color:#ccc;}
+.orow .cancelled-tag{position:absolute;top:2px;right:4px;font-size:12px;}
+.orow .who{font-size:10px;color:var(--muted);}
+/* napped hippos (drawn onto an empty board): public icons, first rows */
+.orow .pick.nap{flex:1;padding:4px 18px;cursor:pointer;text-align:center;}
+/* a swapped row trades places (live left, dead right) with usual box looks */
+.orow .flipmarks{flex:0 0 auto;display:flex;flex-direction:column;gap:2px;justify-content:center;}
+.orow .fmark{display:block;cursor:pointer;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));}
+/* collapsible audit: hide details to free the board behind */
+.audit-head{display:flex;gap:8px;align-items:center;justify-content:space-between;}
+.audit-head h2{margin:0;flex:1;}
+#modal-reveal.mini #rv-tally,#modal-reveal.mini #rv-blame{display:none;}
+/* reveal audit: judged animal bright, the rest dimmed */
+.orow.judged > .pick{border-color:#2E9E5B;box-shadow:0 0 10px rgba(46,158,91,.55);}
+.orow.dimmed{opacity:.45;}
+#hippo-sub.big{font-size:22px;font-weight:800;color:var(--ink);}
+/* tally bar under the token track: always visible, never overlapping */
+/* in the audit, the board stocks move into the sheet — hide them on the felt */
+#table-wrap.noboardstocks #stocks,#table-wrap.noboardstocks .stocks-label{display:none;}
+.side-tally{display:flex;gap:6px;margin-top:6px;}
+.strow{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:5px;color:#fff;font-size:14px;font-weight:800;background:rgba(34,48,60,.88);border-radius:10px;padding:4px 6px;}
+.strow.live{box-shadow:0 0 0 2px #2E9E5B;}
+/* hippo flip-select: only the clicked row is marked — its right box takes
+   the usual shaded+dashed dead look (with a red frame); left stays as-is */
+.orow.flipcand .pick{cursor:pointer;}
+.orow.flipsel .pick{opacity:.55;border:2px dashed var(--accent);background:rgba(255,253,246,.7);}
+.flipbar{display:flex;gap:10px;align-items:center;justify-content:space-between;
+  background:var(--ink);color:#fff;border-radius:14px;padding:10px 12px;margin:10px 0 8px;
+  font-size:15px;}
+.flipbar .btn{width:auto;min-height:48px;padding:8px 20px;}
+.flipbar .btn:disabled{opacity:.4;}
+.orders.onfelt .order{background:rgba(255,253,246,.95);}
+.order{background:var(--card);border:2px solid #2E9E5B33;border-radius:12px;padding:6px;text-align:center;position:relative;}
+.order.down{opacity:.5;filter:grayscale(1);border-color:#ccc;}
+.order .who{font-size:10px;color:var(--muted);}
+.order.cancelled-tag{position:absolute;top:2px;right:4px;font-size:12px;}
+.anicons svg{vertical-align:middle;max-width:100%;height:auto;}
+.anicons{display:inline-flex;flex-wrap:wrap;justify-content:center;gap:1px;align-items:center;max-width:100%;}
+
+/* graphic take button: a shaded stack of cards, bottom of the table */
+.takebtn{margin:auto  auto 0;width:min(330px,88%);min-height:70px;border:0;border-radius:14px;
+  background:#3E4A5A;color:#fff;font-size:21px;font-weight:900;letter-spacing:3px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  box-shadow:5px 5px 0 #2b3542,10px 10px 0 rgba(34,48,60,.22);}
+.takebtn:active{transform:translate(2px,2px);box-shadow:3px 3px 0 #2b3542;}
+.takebtn:disabled{opacity:.45;}
+.deckmini{width:32px;height:44px;border-radius:7px;background:#F1E4C8;position:relative;flex:none;
+  box-shadow:2px 2px 0 rgba(0,0,0,.3);}
+.deckmini::before{content:'';position:absolute;top:6px;bottom:6px;left:50%;width:50%;
+  border-radius:0 20px 20px 0;background:#FF3B5C;}
+.takecount{font-size:14px;font-weight:700;letter-spacing:0;opacity:.85;}
+
+.modal{position:fixed;inset:0;background:rgba(34,48,60,.55);z-index:50;display:flex;
+  align-items:flex-end;justify-content:center;padding:0;}
+/* reveal spotlight layers (all in the root context): veil (50) < judged rows (60) < audit sheet (70).
+   The container itself is unpositioned so it traps nothing; taps fall through
+   to the board except on the sheet. */
+#modal-reveal{position:static;display:block;background:none;z-index:auto;}
+#modal-reveal::before{content:'';position:absolute;inset:0;background:rgba(20,28,36,.14);z-index:50;pointer-events:none;}
+#modal-reveal .sheet{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(480px,100%);z-index:70;margin:0;max-height:64dvh;}
+/* capped well below fullscreen so board rows stay reachable by page scroll
+   behind it (its own content scrolls internally past the cap) */
+.orow.judged{position:relative;z-index:60;pointer-events:none;}
+.modal.fullsheet{align-items:stretch;background:rgba(20,28,36,.84);}
+.modal.center{align-items:center;padding:24px;background:rgba(20,28,36,.72);}
+#modal-hippo{pointer-events:none;z-index:60;} /* above veils (50), below sheets (70);
+  note must never steal hover from the card (flicker loop) */
+#modal-hippo.tappable{pointer-events:auto;cursor:pointer;} /* …except the draw note, dismissed by tap */
+.sheet.pop{border-radius:20px;max-width:340px;min-height:0;text-align:center;padding:26px 22px;}
+.sheet.pop h2{font-size:46px;letter-spacing:5px;margin:8px 0 4px;color:var(--accent);text-align:center;}
+.sheet.pop p{font-size:17px;line-height:1.5;margin:8px 0;}
+.pop-in{animation:popin .35s cubic-bezier(.2,1.4,.4,1);}
+@keyframes popin{from{transform:scale(.6);opacity:0;}}
+/* deal animation: never blocks input, plays once per round */
+#modal-deal{pointer-events:none;background:rgba(20,28,36,.55);}
+#modal-deal .sheet{background:transparent;}
+#modal-deal .sheet p{color:#fff;font-weight:800;font-size:19px;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+#deal-fly{position:fixed;inset:0;pointer-events:none;z-index:1;}
+#deal-fly .dealcard{position:absolute;opacity:0;animation:none;margin:0;}
+.dealwrap{display:flex;gap:8px;justify-content:center;margin-bottom:6px;
+  transition:opacity .25s, transform .25s;}
+#modal-deal .dealwrap.spent{opacity:0;transform:scale(.65);}
+.dealcard{width:44px;height:62px;border-radius:8px;background:#F1E4C8;position:relative;flex:none;
+  box-shadow:2px 2px 0 rgba(0,0,0,.35);animation:riffleL 1s ease-in-out infinite;}
+.dealcard::before{content:'';position:absolute;top:8px;bottom:8px;left:50%;width:50%;
+  border-radius:0 20px 20px 0;background:#FF3B5C;}
+.dealwrap .dealcard:nth-child(1){animation-delay:0s;}
+.dealwrap .dealcard:nth-child(2){animation-delay:.12s;animation-name:riffleR;}
+.dealwrap .dealcard:nth-child(3){animation-delay:.24s;}
+.dealwrap .dealcard:nth-child(4){animation-delay:.36s;animation-name:riffleR;}
+.dealwrap .dealcard:nth-child(5){animation-delay:.48s;}
+/* riffle: odd/even cards weave across each other like a real shuffle */
+@keyframes riffleL{0%,100%{transform:translateX(9px) rotate(5deg);}50%{transform:translateX(-30px) rotate(-11deg);}}
+@keyframes riffleR{0%,100%{transform:translateX(-9px) rotate(-5deg);}50%{transform:translateX(30px) rotate(11deg);}}
+/* seats stay empty until their card lands, then pop in with it */
+#stocks.dealing .stock{opacity:0;transform:scale(.55);}
+#stocks .stock.landed{animation:landpop .32s ease-out;}
+@keyframes landpop{from{transform:scale(.4);opacity:0;}}
+.stock.hippo{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;}
+.sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;
+  padding:18px 16px calc(20px + env(safe-area-inset-bottom));max-height:92dvh;overflow:auto;}
+.sheet.full{border-radius:0;width:100%;max-width:480px;margin:0 auto;min-height:100dvh;max-height:100dvh;overflow-y:auto;display:flex;flex-direction:column;
+  justify-content:center;background:rgba(250,246,239,.98);}
+@keyframes urgentblink{0%,100%{opacity:1;}50%{opacity:.2;}}
+.draw-tally{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:0 0 10px;}
+.dtchip{display:inline-flex;align-items:center;gap:5px;background:#F5EEDF;border-radius:10px;
+  padding:4px 10px;font-size:15px;font-weight:800;}
+.sheet h2{margin:0 0 10px;font-size:20px;}
+.sheet.full h2{text-align:center;font-size:22px;}
+.row{display:flex;gap:10px;margin-top:12px;}
+.row.two .btn{width:50%;}
+.halves{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+.sheet.full .halves{gap:12px;margin-top:6px;}
+.halfpick{border:3px solid #E5DCCB;border-radius:14px;background:var(--card);padding:10px;cursor:pointer;text-align:center;min-width:0;overflow:hidden;}
+.sheet.full .halfpick{min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  border-width:4px;border-radius:18px;}
+.halfpick.sel{border-color:var(--good);background:#EDF7F0;}
+.halfpick .big{font-size:15px;font-weight:800;margin-top:4px;overflow-wrap:anywhere;}
+.sheet.full .halfpick .big{font-size:18px;}
+.sheet.full #btn-confirm-half{min-height:64px;font-size:21px;}
+.sheet.full{padding-left:12px;padding-right:12px;}
+.hippo-pick{display:flex;flex-direction:column;gap:8px;margin-top:8px;max-width:100%;}
+.sheet.full .hpick{padding:14px;font-size:17px;}
+.hpick{border:2px solid #E5DCCB;border-radius:12px;background:var(--card);padding:10px;font-size:15px;cursor:pointer;text-align:left;min-width:0;overflow:hidden;overflow-wrap:anywhere;}
+.hpick.sel{border-color:var(--accent);}
+.pill.mode{background:var(--gold);color:var(--ink);}
+.moderow{background:var(--card);border:2px solid #EFE7D6;border-radius:var(--rad);padding:10px 12px;margin:12px 0 16px;}
+.moderow .lbl{font-size:12px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;}
+.segrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+#play-tabs{margin:2px 0 4px;}
+#panel-bots .lbl{font-size:12px;letter-spacing:2px;color:var(--muted);margin:12px 0 8px;}
+#bots-count{grid-template-columns:repeat(5,1fr);}
+#bots-count .seg{min-height:54px;font-size:19px;padding:8px 4px;}
+#bots-hint{text-align:center;}
+.seg{border:3px solid #E5DCCB;background:var(--bg);border-radius:12px;min-height:48px;
+  font-size:15px;font-weight:700;color:var(--ink);cursor:pointer;}
+.seg.sel{border-color:var(--good);background:#EDF7F0;}
+.seg:disabled{opacity:.75;cursor:default;}
+#rv-tally{display:block;margin:10px 0;}
+#rv-tally .stocks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+#rv-tally .stocks .stock{background:var(--card);}
+#rv-tally .cd{flex-wrap:nowrap;gap:4px;}
+.trow{background:var(--card);border:2px solid #EFE7D6;border-radius:10px;padding:8px;font-size:14px;}
+.trow.bad{border-color:var(--accent);}
+.trow.checked{border-color:var(--good);box-shadow:0 0 0 2px #2E9E5B55;}
+#rv-blame{font-size:16px;font-weight:800;margin:6px 0;}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 16px;border-radius:12px;z-index:99;font-size:15px;max-width:90vw;text-align:center;}

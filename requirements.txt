@@ -1,0 +1,2 @@
+# No third-party dependencies — Python 3.8+ stdlib only.
+# (Three.js loads from CDN in the browser.)

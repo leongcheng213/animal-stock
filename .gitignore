@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# local video-editing files, not part of the game (hundreds of MB)
+clips/

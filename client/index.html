@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FAF6EF">
+<title>Animal Stock — bluff card game</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- turn countdown frame: SVG path walking the rounded rect, round caps -->
+  <div id="turnframe" class="hidden">
+    <svg id="turnframe-svg"><path id="turnframe-path" d=""/></svg>
+  </div>
+
+  <!-- connection dot -->
+  <div id="conn" class="conn offline" title="connection">●</div>
+
+  <!-- ============ JOIN ============ -->
+  <section id="screen-join" class="screen active">
+    <div class="logo-row">
+      <span class="logo-hippo" aria-hidden="true">🦛</span>
+      <h1>Animal Stock</h1>
+    </div>
+    <p class="tagline">Hidden stock. Dodgy orders. One furious Hippo manager.<br>
+      <span class="credit">After <i>Durian</i> (Uesugi / Oink Games). Fan reimplementation.</span></p>
+
+    <label class="fld"><span>Your name</span>
+      <input id="in-name" maxlength="12" placeholder="e.g. Mai" autocomplete="nickname">
+    </label>
+
+    <div class="segrow" id="play-tabs">
+      <button id="tab-friends" class="seg sel">👥 Friends</button>
+      <button id="tab-bots" class="seg">🤖 Vs bots</button>
+    </div>
+
+    <div id="panel-friends">
+      <button id="btn-create" class="btn primary big">Create room</button>
+
+      <div class="or">— or join with a code —</div>
+
+      <label class="fld"><span>Room code (4 letters)</span>
+        <input id="in-code" maxlength="4" placeholder="e.g. KQZT" autocapitalize="characters" autocomplete="off">
+      </label>
+      <button id="btn-join" class="btn big">Join room</button>
+    </div>
+
+    <div id="panel-bots" class="hidden">
+      <div class="lbl">TOTAL PLAYERS — INCLUDING YOU</div>
+      <div class="segrow" id="bots-count">
+        <button class="seg" data-n="2">2</button>
+        <button class="seg sel" data-n="3">3</button>
+        <button class="seg" data-n="4">4</button>
+        <button class="seg" data-n="5">5</button>
+        <button class="seg" data-n="6">6</button>
+      </div>
+      <p class="hint" id="bots-hint">You + 2 bots · fills instantly, plays immediately</p>
+      <button id="btn-start-bots" class="btn primary big">Start vs bots</button>
+    </div>
+
+    <details class="how">
+      <summary>How to play (30 sec)</summary>
+      <ol>
+        <li>Everyone sees <b>each other's</b> stock card — but <b>not their own</b>.</li>
+        <li>On your turn: <b>Take an order</b> (draw, pick one half) or <b>Ring the bell</b> 🔔.</li>
+        <li>Bell = accuse the table of over-selling. Only the <b>last order's animal</b> is checked (host can switch to all-animals in the lobby).</li>
+        <li>Oversold → whoever placed the <b>last order</b> gets a token. Else the <b>ringer</b> gets it.</li>
+        <li>Tokens go 1,2,3… First to <b>7+ total loses</b>. Fewest wins.</li>
+        <li>Hippos: drawn = tap an order to <b>swap</b> its picked/unpicked halves (the Hippo parks beside that row). In stock = Bo cancels all 3s, Pip cancels all Fox, Dozy naps. Tap a Hippo stock card to see what that sibling does.</li>
+      </ol>
+    </details>
+    <p id="join-err" class="err"></p>
+    <p id="buildtag" class="buildtag"></p>
+  </section>
+
+  <!-- ============ LOBBY ============ -->
+  <section id="screen-lobby" class="screen">
+    <div class="roomcode-wrap">
+      <div class="lbl">ROOM CODE — share it</div>
+      <div id="lobby-code" class="roomcode">····</div>
+    </div>
+    <div id="lobby-players" class="plist"></div>
+    <div class="moderow">
+      <div class="lbl">BELL CHECKS <span id="mode-note">(host sets)</span></div>
+      <div class="segrow">
+        <button id="mode-last" class="seg">Last order only</button>
+        <button id="mode-classic" class="seg">All animals</button>
+      </div>
+      <p class="hint" id="mode-hint">Last order only: the bell judges just the newest order's animal. All animals: classic Durian-style full check.</p>
+    </div>
+    <button id="btn-start" class="btn primary big">Start game</button>
+    <button id="btn-leave1" class="btn ghost">Leave</button>
+    <p class="hint">2–6 players · host starts · keep this tab open, phones lock a lot — reconnect is automatic. Leave mid-game and a 🤖 bot takes your seat; anyone can rejoin later and take it back.</p>
+    <p id="lobby-err" class="err"></p>
+  </section>
+
+  <!-- ============ GAME — one continuous table ============ -->
+  <section id="screen-game" class="screen game-screen">
+    <header id="hud">
+      <div class="hud-top">
+        <div><span id="hud-round" class="pill">R1</span> <span id="hud-mode" class="pill mode">LAST</span></div>
+        <div class="hud-right">
+          <span id="hud-deck" class="pill" title="cards left in deck">🂠 37</span>
+          <button id="btn-mute" class="iconbtn" title="sound on/off">🔔</button>
+          <button id="btn-exit" class="iconbtn" title="exit game">✕</button>
+        </div>
+      </div>
+      <div id="side-tally" class="side-tally"></div>
+    </header>
+
+    <div id="table-wrap">
+      <button id="btn-ring" class="bellbtn" title="Ring the bell">🔔</button>
+      <div id="hud-status" class="status overlay">…</div>
+
+      <div class="board-label onfelt stocks-label">STOCKS — everyone else's (yours is face-down)</div>
+      <div id="stocks" class="stocks onfelt"></div>
+
+      <div class="board-label onfelt">ORDER BOARD</div>
+      <div id="orders" class="orders onfelt"></div>
+
+      <div id="flipbar" class="flipbar hidden">
+        <span id="flip-text">🦛 Tap an order on the board to swap its halves</span>
+        <button id="btn-flip-go" class="btn danger">Flip!</button>
+      </div>
+
+      <button id="btn-take" class="takebtn"><span class="deckmini"></span><span>TAKE</span><span id="take-count" class="takecount">🂠 37</span></button>
+    </div>
+  </section>
+</div>
+
+<!-- draw modal — full-screen shaded animal picker -->
+<div id="modal-draw" class="modal hidden fullsheet">
+  <div class="sheet full">
+    <h2 id="draw-title">Your draw — pick ONE half</h2>
+    <div id="draw-card"></div>
+    <div id="draw-halves" class="halves"></div>
+    <div id="draw-hippo-pick" class="hippo-pick hidden"></div>
+    <div class="row">
+      <button id="btn-confirm-half" class="btn primary big">Confirm</button>
+    </div>
+    <p class="hint" id="draw-hint">Only the tapped half becomes an order. The other half is discarded.</p>
+    <div id="draw-tally" class="draw-tally"></div>
+    <div class="board-label">STOCKS — everyone else's (yours is face-down)</div>
+    <div id="draw-stocks" class="stocks"></div>
+    <div class="board-label">ORDER BOARD</div>
+    <div id="draw-orders" class="orders drawlist"></div>
+  </div>
+</div>
+
+<!-- bell confirm -->
+<div id="modal-bell" class="modal hidden">
+  <div class="sheet">
+    <h2>Call the manager? 🔔</h2>
+    <p id="bell-preview">Irreversible. If orders are fine, <b>you</b> take the token.</p>
+    <div class="row two">
+      <button id="btn-bell-no" class="btn big">Wait</button>
+      <button id="btn-bell-yes" class="btn danger big">Ring!</button>
+    </div>
+  </div>
+</div>
+
+<!-- exit confirm -->
+<div id="modal-exit" class="modal hidden">
+  <div class="sheet">
+    <h2>Leave the game?</h2>
+    <p>A 🤖 bot takes your seat and keeps playing. Anyone can rejoin later and take the seat back.</p>
+    <div class="row two">
+      <button id="btn-exit-no" class="btn big">Stay</button>
+      <button id="btn-exit-yes" class="btn danger big">Exit</button>
+    </div>
+  </div>
+</div>
+
+<!-- hippo note (hover/touch preview) + draw celebration -->
+<div id="modal-hippo" class="modal center hidden">
+  <div class="sheet pop">
+    <div id="hippo-art"></div>
+    <h2 id="hippo-name">BO</h2>
+    <p id="hippo-fx"></p>
+    <p id="hippo-sub" class="hint"></p>
+  </div>
+</div>
+
+<!-- deal / shuffle animation at the start of each round -->
+<div id="modal-deal" class="modal center ghost hidden">
+  <div id="deal-fly"></div>
+  <div class="sheet pop deal">
+    <div class="dealwrap">
+      <span class="dealcard"></span><span class="dealcard"></span><span class="dealcard"></span><span class="dealcard"></span><span class="dealcard"></span>
+    </div>
+    <p id="deal-text">Shuffling…</p>
+  </div>
+</div>
+
+<!-- reveal -->
+<div id="modal-reveal" class="modal hidden">
+  <div class="sheet">
+    <div class="audit-head">
+      <h2 id="rv-verdict">…</h2>
+      <button id="btn-audit-toggle" class="iconbtn" title="hide/show details">▲</button>
+    </div>
+    <div id="rv-tally"></div>
+    <div id="rv-blame"></div>
+    <div class="row">
+      <button id="btn-next" class="btn primary big">Next round →</button>
+    </div>
+  </div>
+</div>
+
+<!-- game over -->
+<div id="modal-over" class="modal hidden">
+  <div class="sheet">
+    <h2 id="over-title">Game over</h2>
+    <div id="over-table"></div>
+    <div class="row two">
+      <button id="btn-leave2" class="btn">Leave</button>
+      <button id="btn-restart" class="btn primary">Play again</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- bump ?v= every time client JS changes so phones refetch it -->
+<script src="animals.js?v=12"></script>
+<script type="module" src="app.js?v=12"></script>
+</body>
+</html>
