@@ -276,8 +276,14 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 /* guided picture tour: dark room, lit mock on top, note below — never overlapping */
 .modal.tour{align-items:center;justify-content:center;z-index:70;padding:14px;background:rgba(20,28,36,.92);}
 .tour-box{width:min(440px,94vw);max-height:94dvh;overflow-y:auto;background:var(--bg);
-  border-radius:20px;padding:14px 14px 18px;display:flex;flex-direction:column;gap:10px;}
+  border-radius:20px;padding:14px 14px 18px;display:flex;flex-direction:column;gap:10px;
+  position:relative;}
 .tour-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;}
+.tour-arrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border:none;background:rgba(34,48,60,.6);color:#fff;border-radius:50%;font-size:28px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.tour-arrow:disabled{opacity:.25;cursor:not-allowed;}
+.tour-arrow:hover:not(:disabled){background:rgba(34,48,60,.9);}
+#tour-prev{left:8px;}
+#tour-next{right:8px;}
 #tour-spot{min-height:150px;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;
   background:#E7D8BC;border-radius:14px;padding:12px;}
 #tour-spot .stocks,#tour-spot .halves{width:100%;}

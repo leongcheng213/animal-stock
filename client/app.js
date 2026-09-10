@@ -240,10 +240,14 @@ function renderTour() {
   $('tour-count').textContent = (tourIdx + 1) + ' / ' + TOUR.length;
   $('tour-dots').innerHTML = TOUR.map((_, k) => `<span class="tdot${k === tourIdx ? ' on' : ''}"></span>`).join('');
   $('btn-tour-go').classList.toggle('hidden', tourIdx !== TOUR.length - 1);
+  $('tour-prev').disabled = tourIdx === 0;
+  $('tour-next').disabled = tourIdx === TOUR.length - 1;
 }
 $('btn-tour').onclick = () => openTour();
 $('btn-tour-x').onclick = (e) => { e.stopPropagation(); closeTour(); };
 $('btn-tour-go').onclick = (e) => { e.stopPropagation(); closeTour(); };
+$('tour-prev').onclick = (e) => { e.stopPropagation(); if (tourIdx > 0) { tourIdx--; renderTour(); } };
+$('tour-next').onclick = (e) => { e.stopPropagation(); if (tourIdx < TOUR.length - 1) { tourIdx++; renderTour(); } };
 $('modal-tour').addEventListener('click', (e) => {
   if (e.target.closest('button')) return;
   if (tourIdx < TOUR.length - 1) { tourIdx++; renderTour(); }
