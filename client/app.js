@@ -337,15 +337,13 @@ $('btn-leave2').onclick = () => { send({ type: 'LEAVE' }); $('modal-over').class
 
 // ---------- game actions ----------
 $('btn-take').onclick = () => send({ type: 'TAKE_ORDER' });
-attachNotePreview($('btn-ring'), bellNote);
 $('btn-ring').onclick = () => {
   if (state && state.noRingFor === state.youId) { bellNote(); return; }
   const face = (state.orders || []).filter(o => o.faceUp);
   const last = face[face.length - 1];
-  const lastOnly = (state.ruleMode || 'last_only') === 'last_only';
-  $('bell-preview').innerHTML = last && lastOnly
+  $('bell-preview').innerHTML = last
     ? `Judges only <b>${last.count}× ${last.animal}</b> (the newest order). Wrong call = <b>you</b> take the token.`
-    : `Judges <b>every animal</b>. Wrong call = <b>you</b> take the token.`;
+    : `No orders yet — take one first.`;
   $('modal-bell').classList.remove('hidden');
 };
 $('btn-bell-no').onclick = () => $('modal-bell').classList.add('hidden');
@@ -448,10 +446,10 @@ function render() {
     drawnCard = null; selHalf = null; selHippoIdx = null;
     $('modal-draw').classList.add('hidden');
   }
-  // a hover/touch note belongs to replaced DOM nodes — drop it on fresh state;
-  // a draw note outlives states only while its pick is still pending
-  if (hippoOverlayMode === 'note') hideHippo();
-  else if (hippoOverlayMode === 'draw' && !state.hasPendingDraw) hideHippo();
+  // A Hippo note stays up across state updates: it used to be torn down by the
+  // next player's draw, which is exactly when someone is still reading it.
+  // A draw note still closes once its own pick is resolved.
+  if (hippoOverlayMode === 'draw' && !state.hasPendingDraw) hideHippo();
   if (state.phase === 'playing' && state.round === 1 && !state.orders.length && !state.lastResolution) {
     lastRevealKey = ''; openGameOver._played = false; // fresh game — reset one-shot flags
   }
@@ -549,20 +547,28 @@ const HIPPO_INFO = {
   dozy: { name: 'DOZY', fx: 'Does nothing at reveal — pure bluff.' },
   pip:  { name: 'PIP',  fx: 'Cancels every Zebra order at reveal.' },
 };
-let hippoHideT = 0, hippoOverlayMode = null, lastTouchT = 0;
+let hippoHideT = 0, hippoOverlayMode = null, lastTouchT = 0, hippoShowT = 0;
+// how long the cursor has to rest on a Hippo before its note opens —
+// without it, brushing past one on the way elsewhere pops the note
+const NOTE_HOVER_DELAY = 500;
 let lastDealKey = '', dealHideT = 0, dealTextT = 0;
 // shared hover/touch auto-preview for tap-targets (hippos, bell)
 function attachNotePreview(el, showFn) {
   el.onmouseenter = () => {
     if (Date.now() - lastTouchT < 1200) return; // ignore emulated mouse
     clearTimeout(hippoHideT);
-    showFn();
+    clearTimeout(hippoShowT);
+    hippoShowT = setTimeout(showFn, NOTE_HOVER_DELAY);
   };
-  el.onmouseleave = () => { if (hippoOverlayMode === 'note') hideHippo(); };
+  el.onmouseleave = () => {
+    clearTimeout(hippoShowT);
+    if (hippoOverlayMode === 'note') hideHippo();
+  };
   el.ontouchstart = () => {
     lastTouchT = Date.now();
     clearTimeout(hippoHideT);
-    showFn();
+    clearTimeout(hippoShowT);
+    showFn();                 // a tap is deliberate: no waiting
   };
   el.ontouchend = () => {
     clearTimeout(hippoHideT);
@@ -573,18 +579,17 @@ function attachHippoNote(el, which) {
   el.classList.add('hippo');
   attachNotePreview(el, () => showHippo(which, '', 'note'));
 }
+// Only ever shown when someone tries to ring on a hippo-blocked turn. A normal
+// turn gets no note at all — the bell just opens its confirm dialog.
 function bellNote() {
-  const blocked = state && state.noRingFor === state.youId;
   const by = state && state.noRingBy ? nameOf(state.noRingBy) : null;
   showNote({
     art: window.AnimalArt.shape('bell', 110),
-    title: blocked ? 'RING BLOCKED' : 'THE BELL',
-    color: blocked ? '#FF3B5C' : '',
-    body: blocked
-      ? `${by || 'Someone'} just played a Hippo. You must take an order this turn — the bell unlocks again next turn.`
-      : 'Accuse the table of promising more animals than exist. Call it wrong and the token is yours.',
-    sub: '',
-  }, 'note');
+    title: 'RING BLOCKED',
+    color: '#FF3B5C',
+    body: `${by || 'Someone'} just played a Hippo. You must take an order this turn — the bell unlocks again next turn.`,
+    sub: 'Tap anywhere to go back',
+  }, 'tapnote');
 }
 let dealTimers = [];
 function showDeal(n) {
@@ -656,21 +661,25 @@ function showNote(o, mode) {
   const ov = $('modal-hippo');
   // draw mode stays until tapped (tappable); note mode stays pointer-clear
   // so hover never traps (flicker loop)
-  ov.classList.toggle('tappable', mode === 'draw');
+  ov.classList.toggle('tappable', mode === 'draw' || mode === 'tapnote');
   ov.classList.remove('hidden');
   const sh = document.querySelector('#modal-hippo .sheet');
   sh.classList.remove('pop-in'); void sh.offsetWidth; sh.classList.add('pop-in');
   hippoOverlayMode = mode || 'note';
 }
 function hideHippo() {
+  clearTimeout(hippoShowT);
   $('modal-hippo').classList.add('hidden');
   $('modal-hippo').classList.remove('tappable');
   hippoOverlayMode = null;
   clearTimeout(hippoHideT);
 }
-// a tap lands on the overlay only in draw mode — that tap dismisses it
+// Draw notes and click-opened notes ("tapnote") own the screen, so a tap
+// anywhere dismisses them. Hover notes stay pointer-transparent: an overlay
+// under the cursor would fire mouseleave on the thing being hovered and
+// flicker open/shut.
 $('modal-hippo').addEventListener('pointerup', () => {
-  if (hippoOverlayMode === 'draw') hideHippo();
+  if (hippoOverlayMode === 'draw' || hippoOverlayMode === 'tapnote') hideHippo();
 });
 
 function renderStocks() {
@@ -866,10 +875,11 @@ function tickTimer() {
   if (left > TURN_WINDOW + 0.15) { ov.classList.add('hidden'); return; }
   const frac = Math.max(0, Math.min(1, left / TURN_WINDOW));
   let tel = null;
-  if (!$('modal-draw').classList.contains('hidden') && state.hasPendingDraw) {
+  const pd = !$('modal-draw').classList.contains('hidden') && state.hasPendingDraw;
+  const ap = activePlayer();
+  if (pd) {
     tel = document.querySelector('#modal-draw .sheet');
   } else {
-    const ap = activePlayer();
     if (!ap) { ov.classList.add('hidden'); return; }
     if (ap.id === state.youId) {
       tel = $('table-wrap');
@@ -903,9 +913,28 @@ function tickTimer() {
     ov._vw = W; ov._vh = H;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   }
-  $('turnframe-path').setAttribute('d', framePathD(W, H, (ov._trad || 0) + pad, frac));
-  const urgent = left < 5;
-  ov.classList.toggle('urgent', urgent);
+  // The ring is NOT redrawn per tick any more. Re-cutting the path from JS
+  // capped its smoothness at the tick rate, and any throttling turned the
+  // drain into ~1/second steps of ~100px — it sat still, then jumped. Instead
+  // the full lap is drawn once per turn and the browser interpolates
+  // stroke-dashoffset over the remaining time, so it drains continuously
+  // however often (or rarely) this function runs.
+  const path = $('turnframe-path');
+  const key = `${pd ? 'draw' : (ap ? ap.id : '-')}|${W}x${H}|${state.turnDeadline}`;
+  if (ov._key !== key) {
+    ov._key = key;
+    path.setAttribute('d', framePathD(W, H, (ov._trad || 0) + pad, 1));
+    const L = path.getTotalLength();
+    // dasharray L + offset D shows the first (L - D) of the lap, so D runs
+    // 0 -> L as the turn burns down
+    path.style.transition = 'none';
+    path.style.strokeDasharray = L;
+    path.style.strokeDashoffset = L * (1 - Math.max(0, Math.min(1, frac)));
+    void path.getBoundingClientRect();          // flush before re-arming
+    path.style.transition = `stroke-dashoffset ${Math.max(0, left).toFixed(2)}s linear`;
+    path.style.strokeDashoffset = L;
+  }
+  ov.classList.toggle('urgent', left < 5);
 }
 
 // Countdown path: walk the rounded rect clockwise from the top-right corner
@@ -967,7 +996,11 @@ function framePathD(W, H, R, frac) {
     }
     remain -= used;
   }
-  if (remain > 0) out.push('Z');
+  // Deliberately never closed with 'Z'. At frac ~1 the remainder lands on a
+  // floating-point knife edge, so the ring flickered between a closed loop and
+  // an open one — read as "it sits still, then the line suddenly cuts". A full
+  // lap already returns to its start, so leaving it open looks identical and
+  // drains continuously from the first frame.
   return out.join('');
 }
 
