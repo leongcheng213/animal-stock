@@ -1090,33 +1090,33 @@ const W_SIBS = '<div class="walk-sibs">' + ['bo', 'pip', 'dozy']
 const WALK = [
   {
     t: 'One round, start to finish',
-    b: 'Three players — you are the bottom card. This is the real game screen, not a picture of one. Tap <b>Next</b> to play a round through.',
+    b: 'Three players, one round, start to finish. You are the bottom card.',
     sel: '#table-wrap',
   },
   {
     t: 'What everyone is holding',
-    b: 'Each player has one <b>stock</b> card, and <b>both halves count</b>. Ann is holding 1 toucan + 2 crocodiles. Bo has 1 zebra + 3 toucans. That is the sanctuary’s entire supply.',
+    b: 'One <b>stock</b> card each, and <b>both halves count</b>. Ann: 1 toucan + 2 crocodiles. Bo: 1 zebra + 3 toucans. That is the whole supply.',
     sel: '#stocks',
   },
   {
     t: 'Except yours',
-    b: 'Your card shows 🙈 — to <b>you</b>. Ann and Bo can both see it. Everyone is counting animals they can see, and guessing at the one they cannot.',
+    b: 'Yours is face-down <b>to you only</b>. Ann and Bo can both see it.',
     sel: '.stock.me',
   },
   {
     t: 'Your turn: two choices',
-    b: '<b>TAKE</b> draws the top card and promises something. The bell 🔔 in the corner accuses the table of promising animals that do not exist. You can only ring on your own turn.',
+    b: '<b>TAKE</b> a card and promise something, or ring the <b>bell</b> to accuse the table. Your turn only.',
     sel: '#btn-take',
   },
   {
     t: 'Pick ONE half',
-    b: 'You drew <b>1 toucan / 2 zebra</b>. Only the half you tap becomes a promise — the other is thrown away. You can see a zebra in Bo’s hand, so 2 zebra looks affordable. Take it.',
+    b: 'Only the half you tap becomes a promise. Bo already shows a zebra, so take the <b>2 zebra</b>.',
     sel: '#draw-halves',
     run: (s) => { s.hasPendingDraw = true; s.pendingDrawCardId = 'w1'; s.activeChoosing = true; },
   },
   {
     t: 'Your promise lands',
-    b: 'The picked half sits on the board. The <b>faded half beside it is the discard</b> — it counts for nothing. You have now promised <b>2 zebra</b>.',
+    b: 'The <b>faded half is the discard</b> — it counts for nothing. You have promised 2 zebra.',
     sel: '#orders',
     run: (s) => {
       s.hasPendingDraw = false; s.pendingDrawCardId = null; s.activeChoosing = false;
@@ -1126,51 +1126,51 @@ const WALK = [
   },
   {
     t: 'The running tally',
-    b: 'Down the side: how many of each animal have been <b>promised</b> so far. It never includes anyone’s stock — that part is your job.',
+    b: 'How many of each animal are <b>promised</b>. Stock is never counted here — that part is your job.',
     sel: '#side-tally',
   },
   {
     t: 'Ann goes big',
-    b: 'Ann draws and promises <b>3 toucans</b>. Toucans are the commonest animal, so it is a fair bet — but the board is filling up.',
+    b: 'Ann promises <b>3 toucans</b>. Common animal, fair bet — but the board is filling up.',
     sel: '#orders',
     run: (s) => { wPlace(s, 'w2', 1, 'ann'); s.activeSeat = 1; },
   },
   {
     t: 'Bo draws a Hippo 🦛',
-    b: 'A Hippo drawn on your turn cancels nothing — it <b>swaps a row’s two halves</b>. Bo points it at your row, so your <b>2 zebra flips to 1 toucan</b> and the zebra is discarded. The Hippo parks beside the row it changed.',
+    b: 'A drawn Hippo <b>swaps a row’s halves</b>. Bo aims it at your row: <b>2 zebra becomes 1 toucan</b>.',
     sel: '#orders',
     run: (s) => { wSwap(s, 0, 'w3'); s.activeSeat = 2; s.noRingFor = 'you'; s.noRingBy = 'bo'; },
   },
   {
     t: 'The bell is locked',
-    b: 'The turn straight after a Hippo <b>cannot ring</b>. You have to take a card and live with the new board for a turn. And Bo can never be blamed for that swap — flipping is not promising.',
+    b: 'No ringing on the turn after a Hippo — you must take. Flipping never gets Bo blamed.',
     sel: '#btn-ring',
   },
   {
     t: 'So you take, quietly',
-    b: 'You promise <b>1 lion</b>. Lions are the rarest animal — only ten in the whole deck — so promising one is a real risk. But it is small, and you had no choice.',
+    b: 'You promise <b>1 lion</b> — the rarest animal, only ten in the deck. Small, but a real gamble.',
     sel: '#orders',
     run: (s) => { wPlace(s, 'w4', 0, 'you'); s.activeSeat = 0; s.noRingFor = null; s.noRingBy = null; },
   },
   {
     t: 'Ann overreaches',
-    b: 'Ann promises <b>3 zebra</b>. That is now the <b>newest</b> order — and the bell judges the newest order’s animal and nothing else. Zebra is suddenly the only number that matters.',
+    b: 'Ann promises <b>3 zebra</b>. The bell judges the <b>newest order’s animal</b> and nothing else, so zebra is all that matters now.',
     sel: '#side-tally',
     run: (s) => { wPlace(s, 'w5', 1, 'ann'); s.activeSeat = 2; },
   },
   {
     t: 'Now count it',
-    b: 'Zebra promised: <b>3</b>. Zebra you can actually see: <b>1</b>, in Bo’s hand. The missing two would have to be on your own hidden card — and one card carries at most three of anything.',
+    b: 'Zebra promised: <b>3</b>. Zebra you can see: <b>1</b>. The rest would have to be on your own hidden card.',
     sel: '#stocks',
   },
   {
     t: 'Ring it 🔔',
-    b: 'It is your turn and the bell is unlocked again. You think Ann has promised zebra that do not exist. Call her.',
+    b: 'The bell is unlocked again. You think Ann promised zebra that do not exist — call her.',
     sel: '#btn-ring',
   },
   {
     t: 'Everything flips',
-    b: 'Every stock card turns over. Yours was <b>DOZY the Hippo</b> — a Hippo holds <b>no animals at all</b>, so you were adding nothing to the supply the whole round. The zebra you were hoping for was never there.',
+    b: 'Yours was <b>DOZY</b> — a Hippo holds <b>no animals</b>, so you added nothing all round.',
     sel: '#modal-reveal .sheet',
     run: (s) => {
       s.phase = 'reveal';
@@ -1187,7 +1187,7 @@ const WALK = [
   },
   {
     t: 'Good call — Ann pays',
-    b: '3 zebra promised against <b>1</b> in stock. The promises were bad, so the <b>last player to promise</b> takes the anger token — Ann, not whoever technically broke it. She takes ⚡1 and starts the next round.',
+    b: '3 promised against <b>1</b> in stock. The <b>last player to promise</b> takes the token — Ann. She starts the next round.',
     // the verdict line lives inside the scrollable sheet, so anchor to the
     // sheet itself: scrolling a sub-element out from under the ring looks broken
     sel: '#modal-reveal .sheet',
@@ -1209,21 +1209,24 @@ const WALK = [
   },
   {
     t: 'The other two Hippos',
-    b: 'Dozy just naps. The siblings bite — and only while sitting in someone’s <b>stock</b>, revealed at the bell:<br><b>BO</b> cancels every order showing <b>three</b> animals. <b>PIP</b> cancels every <b>zebra</b> order. Tap any Hippo mid-game to re-read this.' + W_SIBS,
+    b: 'Only from someone’s <b>stock</b>, revealed at the bell: <b>BO</b> cancels every <b>3</b>-count, <b>PIP</b> cancels every <b>zebra</b>, Dozy naps.' + W_SIBS,
     sel: null,
   },
   {
     t: 'That is a round',
-    b: 'Tokens climb: 1, then 2, then 3… Reach <b>7 total and you lose</b> — <b>fewest points wins</b>. The rest is watching what people promise, and deciding whether you believe them.',
+    b: 'Tokens climb 1, 2, 3… reach <b>7 and you lose</b>. <b>Fewest points wins.</b>',
     sel: null,
   },
 ];
 
-let walkOn = false, walkIdx = 0, walkPrevState = null;
+let walkOn = false, walkIdx = 0, walkPrevState = null, walkPrevScreen = 'join';
 const W_MODALS = ['modal-draw', 'modal-reveal', 'modal-hippo', 'modal-over', 'modal-bell'];
 
 function walkStart() {
   walkPrevState = state;
+  // remember where we came from: a stale state from a finished game would
+  // otherwise drop the player back onto that dead board when the tour ends
+  walkPrevScreen = Object.keys(screens).find(k => screens[k].classList.contains('active')) || 'join';
   walkOn = true;
   $('walk').classList.remove('hidden');
   show('game');
@@ -1236,7 +1239,8 @@ function walkEnd() {
   drawnCard = null; selHalf = null; selHippoIdx = null;
   lastRevealKey = ''; lastDealKey = '';
   state = walkPrevState;
-  if (state) render(); else show('join');
+  if (walkPrevScreen === 'game' && state) render();
+  else show(walkPrevScreen);
 }
 function walkGo(i) {
   walkIdx = Math.max(0, Math.min(WALK.length - 1, i));
