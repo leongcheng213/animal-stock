@@ -6,11 +6,12 @@ function paintBuildTag() {
   if (el) el.textContent = `app v${APP_BUILD}` + (serverVer ? ` · server v${serverVer}` : '');
 }
 const $ = (id) => document.getElementById(id);
-const screens = { splash: $('screen-splash'), join: $('screen-join'), lobby: $('screen-lobby'), game: $('screen-game') };
+const screens = { splash: $('screen-splash'), join: $('screen-join'), code: $('screen-code'), lobby: $('screen-lobby'), game: $('screen-game') };
 function show(name) { for (const k in screens) screens[k].classList.toggle('active', k === name); }
 
 // splash: floating pink pig, tap to jump in
 $('pig-splash').innerHTML = window.AnimalArt.shape('hippo', 180, 'bo');
+$('code-hippo').innerHTML = window.AnimalArt.shape('hippo', 40, 'bo');
 $('screen-splash').onclick = () => {
   const s = $('screen-splash');
   if (s.classList.contains('jump')) return;
@@ -148,6 +149,8 @@ function onMsg(m) {
     pendingBotTotal = 0; // let the user retry the solo setup cleanly
     const je = $('join-err'), le = $('lobby-err');
     if (je) je.textContent = m.message;
+    const ce = $('code-err');
+    if (ce && screens.code.classList.contains('active')) ce.textContent = m.message;
     if (le) le.textContent = m.message;
   }
 }
@@ -162,7 +165,7 @@ $('btn-create').onclick = () => {
 function joinWithCode() {
   playerName = ($('in-name').value || 'Player').trim().slice(0, 12) || 'Player';
   const code = ($('in-code').value || '').trim().toUpperCase();
-  if (code.length !== 4) { $('join-err').textContent = 'Code is 4 characters.'; return; }
+  if (code.length !== 4) { $('code-err').textContent = 'Code is 4 characters.'; return; }
   sessionStorage.setItem('as_name', playerName);
   $('join-err').textContent = '';
   playerId = null; // fresh join unless server matches name? keep simple: fresh seat
@@ -170,18 +173,15 @@ function joinWithCode() {
   roomCode = code; sessionStorage.setItem('as_room', code);
   sendLobby({ type: 'JOIN', room: code, name: playerName });
 }
-// First tap opens the code box (nothing to type into before that); once it is
-// open the same button does the joining.
+// entering a code gets its own screen rather than unfolding under the button
 $('btn-join').onclick = () => {
-  const fld = $('code-field');
-  if (fld.classList.contains('hidden')) {
-    fld.classList.remove('hidden');
-    $('join-err').textContent = '';
-    $('in-code').focus();
-    return;
-  }
-  joinWithCode();
+  $('code-err').textContent = '';
+  $('in-code').value = '';
+  show('code');
+  $('in-code').focus();
 };
+$('btn-code-go').onclick = () => joinWithCode();
+$('btn-code-back').onclick = () => show('join');
 $('in-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinWithCode(); });
 $('btn-start').onclick = () => send({ type: 'START' });
 

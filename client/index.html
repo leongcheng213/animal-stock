@@ -45,10 +45,6 @@
     <div id="panel-friends">
       <button id="btn-create" class="btn primary big">Create room</button>
       <button id="btn-join" class="btn big">Join room</button>
-      <!-- the code box only appears once Join room is tapped -->
-      <label class="fld hidden" id="code-field"><span>Room code (4 letters)</span>
-        <input id="in-code" maxlength="4" placeholder="e.g. KQZT" autocapitalize="characters" autocomplete="off">
-      </label>
     </div>
 
     <div id="panel-bots" class="hidden">
@@ -67,6 +63,19 @@
     <button id="btn-walk" class="btn primary big">▶ How to play</button>
     <p id="join-err" class="err"></p>
     <p id="buildtag" class="buildtag"></p>
+  </section>
+
+  <!-- ============ JOIN BY CODE ============ -->
+  <section id="screen-code" class="screen">
+    <div class="logo-row"><span class="logo-hippo" id="code-hippo"></span><h1>Join a room</h1></div>
+    <p class="tagline">Ask whoever made the room for its 4-letter code.</p>
+
+    <label class="fld"><span>Room code (4 letters)</span>
+      <input id="in-code" maxlength="4" placeholder="e.g. KQZT" autocapitalize="characters" autocomplete="off">
+    </label>
+    <button id="btn-code-go" class="btn primary big">Join room</button>
+    <button id="btn-code-back" class="btn ghost">← Back</button>
+    <p id="code-err" class="err"></p>
   </section>
 
   <!-- ============ LOBBY ============ -->
