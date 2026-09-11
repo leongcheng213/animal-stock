@@ -24,6 +24,10 @@
     lion: "#F2B01D", lionMane: "#E2621B", lionLight: "#FBC33A",
     lionCream: "#FBE7B0",
 
+    monkey: "#A9773F", monkeyDark: "#96683A", monkeyEar: "#E4C49C",
+    monkeyInner: "#D3A188", monkeyFace: "#F2E2C2", monkeyHand: "#F7E7C8",
+    monkeyHandDark: "#EEDCBB", monkeyLine: "#D9BE95", monkeyMouth: "#8E1B3A",
+
     bell: "#F9C51A", bellOrange: "#EE7A22", bellShade: "#D2601A",
     bellClap: "#A5713C", bellClapDark: "#7C5227",
 
@@ -106,6 +110,29 @@
       `<circle cx="80" cy="38" r="2.6" fill="${C.ink}"/>`;
   }
 
+  // see-no-evil monkey: what your own stock card looks like to you. Hands sit
+  // above the eyes rather than over them, so the face still reads at 46px.
+  function monkey() {
+    return `<circle cx="18" cy="48" r="13" fill="${C.monkeyEar}"/>` +
+      `<circle cx="18" cy="48" r="6" fill="${C.monkeyInner}"/>` +
+      `<circle cx="82" cy="48" r="13" fill="${C.monkeyEar}"/>` +
+      `<circle cx="82" cy="48" r="6" fill="${C.monkeyInner}"/>` +
+      `<path d="M34,50 L48,58 L34,94 L20,88 Z" fill="${C.monkeyDark}"/>` +
+      `<path d="M66,50 L52,58 L66,94 L80,88 Z" fill="${C.monkeyDark}"/>` +
+      `<circle cx="50" cy="50" r="30" fill="${C.monkey}"/>` +
+      `<path d="M50,20 A30,30 0 0 1 50,80 Z" fill="${C.monkeyDark}"/>` +
+      `<ellipse cx="50" cy="64" rx="20" ry="16" fill="${C.monkeyFace}"/>` +
+      `<circle cx="42" cy="62" r="3.2" fill="${C.ink}"/>` +
+      `<circle cx="58" cy="62" r="3.2" fill="${C.ink}"/>` +
+      `<path d="M40,70 A10,10 0 0 0 60,70 Z" fill="${C.monkeyMouth}"/>` +
+      `<rect x="22" y="36" width="28" height="22" rx="9" fill="${C.monkeyHand}"/>` +
+      `<rect x="50" y="36" width="28" height="22" rx="9" fill="${C.monkeyHandDark}"/>` +
+      `<rect x="30" y="42" width="14" height="2.4" rx="1.2" fill="${C.monkeyLine}"/>` +
+      `<rect x="30" y="47.5" width="14" height="2.4" rx="1.2" fill="${C.monkeyLine}"/>` +
+      `<rect x="56" y="42" width="14" height="2.4" rx="1.2" fill="${C.monkeyLine}"/>` +
+      `<rect x="56" y="47.5" width="14" height="2.4" rx="1.2" fill="${C.monkeyLine}"/>`;
+  }
+
   // the manager's bell: one flat shape split down the middle, lit side yellow
   // and shadow side orange — the same two-tone trick as the reference art
   function bell() {
@@ -150,6 +177,7 @@
     else if (animal === "crocodile") inner = crocodile();
     else if (animal === "lion") inner = lion();
     else if (animal === "bell") inner = bell();
+    else if (animal === "monkey") inner = monkey();
     else if (animal === "hippo") inner = hippo(variant);
     else inner = back();
     return svgOpen(s) + inner + `</svg>`;

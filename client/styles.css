@@ -112,7 +112,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 .stock.me{border-style:dashed;opacity:.9;}
 .stock .nm{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .stock .cd{display:flex;justify-content:center;gap:2px;min-height:52px;flex:1;align-items:center;flex-wrap:wrap;}
-.ownhide{font-size:44px;line-height:1;}
+.ownhide{line-height:0;display:inline-block;}
 .halfchip{border-radius:8px;padding:2px 4px;margin:1px;background:#F5EEDF;}
 .halfchip .anicons{display:inline-flex;gap:1px;align-items:center;}
 .halfchip small{display:block;font-size:10px;color:var(--muted);}

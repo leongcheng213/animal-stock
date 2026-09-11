@@ -386,7 +386,7 @@ function openDrawModal() {
     d.className = 'stock' + (p.id === state.youId ? ' me' : '');
     let body;
     if (p.id === state.youId) {
-      body = `<div class="cd"><span class="ownhide">🙈</span></div>`;
+      body = `<div class="cd"><span class="ownhide">${window.AnimalArt.shape('monkey', 46)}</span></div>`;
     } else {
       const card = p.stockCardId ? state.cards[p.stockCardId] : null;
       body = cardHalvesHTML(card);
@@ -663,7 +663,7 @@ function renderStocks() {
     d.className = 'stock' + (p.id === state.youId ? ' me' : '');
     let body;
     if (p.id === state.youId && state.phase === 'playing') {
-      body = `<div class="cd"><span class="ownhide">🙈</span></div>`;
+      body = `<div class="cd"><span class="ownhide">${window.AnimalArt.shape('monkey', 46)}</span></div>`;
     } else {
       const card = p.stockCardId ? state.cards[p.stockCardId] : null;
       body = cardHalvesHTML(card);
