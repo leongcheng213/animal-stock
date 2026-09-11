@@ -86,6 +86,9 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   line-height:0;padding:6px;cursor:pointer;
   filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));}
 #table-wrap > .bellbtn:disabled{opacity:.38;filter:grayscale(.85);animation:none;}
+/* hippo-blocked: shaded like a disabled bell, but still tappable so it can
+   explain itself */
+#table-wrap > .bellbtn.blocked{opacity:.4;filter:grayscale(.9);animation:none;}
 #table-wrap > .bellbtn:not(:disabled){animation:ringpulse 1.6s ease-in-out infinite;}
 @keyframes ringpulse{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.1) rotate(-8deg)}}
 #table-wrap > .bellbtn.shake{animation:bellshake .5s ease-in-out;}

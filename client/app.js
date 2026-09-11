@@ -323,6 +323,7 @@ $('btn-leave2').onclick = () => { send({ type: 'LEAVE' }); $('modal-over').class
 $('btn-take').onclick = () => send({ type: 'TAKE_ORDER' });
 attachNotePreview($('btn-ring'), bellNote);
 $('btn-ring').onclick = () => {
+  if (state && state.noRingFor === state.youId) { bellNote(); return; }
   const face = (state.orders || []).filter(o => o.faceUp);
   const last = face[face.length - 1];
   const lastOnly = (state.ruleMode || 'last_only') === 'last_only';
@@ -562,8 +563,8 @@ function bellNote() {
     title: blocked ? 'RING BLOCKED' : 'THE BELL',
     color: blocked ? '#FF3B5C' : '',
     body: blocked
-      ? `${by || 'Someone'} just played a Hippo — you must take an order this turn. No ringing the flipper.`
-      : 'Ring to accuse the table of overselling. A wrong call takes the token — and nobody may ring on the turn right after a Hippo.',
+      ? `${by || 'Someone'} just played a Hippo. You must take an order this turn — the bell unlocks again next turn.`
+      : 'Accuse the table of promising more animals than exist. Call it wrong and the token is yours.',
     sub: '',
   }, 'note');
 }
@@ -815,7 +816,10 @@ function renderButtons() {
   const faceUp = (state.orders || []).some(o => o.faceUp);
   const blocked = state.noRingFor === state.youId;
   $('btn-take').disabled = !(mine && state.phase === 'playing');
-  $('btn-ring').disabled = !(mine && state.phase === 'playing' && faceUp && !blocked);
+  // A hippo block is not the same as "you cannot ring right now": it is a rule
+  // worth explaining. Leave the button live but shaded, so tapping it says why.
+  $('btn-ring').disabled = !(mine && state.phase === 'playing' && faceUp);
+  $('btn-ring').classList.toggle('blocked', !!(blocked && mine && state.phase === 'playing'));
 }
 
 // turn countdown frame: one bordered box tracing its target (active tile,
