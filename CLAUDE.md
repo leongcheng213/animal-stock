@@ -30,7 +30,9 @@ These are deliberate. Don't "fix" them back to the spec.
 - After a Hippo resolves, the next player may not ring the bell for one turn.
 - Flipping never changes `lastOrderBy`, so a flipper can't become the blamed player.
 - Whoever takes a token starts the next round (spec gives it to the player on their left).
-- Default bell mode is `last_only`; host can switch to `classic` in the lobby.
+- The bell judges ONLY the last face-up order's animal. The spec's every-animal
+  check was a lobby option for a while; it has been removed, so there is no
+  rule mode any more — do not reintroduce one.
 - Max 6 players.
 
 ## Verify

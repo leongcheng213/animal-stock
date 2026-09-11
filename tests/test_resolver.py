@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from shared.game_logic import (
     ANIMALS, build_deck, validate_deck, new_room_state, setup_round,
     stock_tally, orders_tally, effective_orders, resolve_bell, redact_for_viewer,
-    apply_hippo_swap, DEFAULT_RULE_MODE,
+    apply_hippo_swap,
 )
 
 
@@ -46,9 +46,6 @@ def _mkstate(stock_cards, orders, ringer="p1", last_by=None):
         "lastOrderBy": last_by or (orders[-1][2] if orders else None),
         "nextTokenValue": 1, "round": 1, "pendingDraw": None,
         "lastResolution": None, "turnDeadline": None, "winners": [], "loserId": None,
-        # real rooms always carry a mode (new_room_state sets it); tests that
-        # want the other one set it explicitly rather than leaning on a default
-        "ruleMode": DEFAULT_RULE_MODE,
     }
     return state
 
@@ -219,33 +216,25 @@ class TestResolver(unittest.TestCase):
         self.assertEqual(r["ordersTally"]["zebra"], 0)
         self.assertEqual(r["ordersTally"]["toucan"], 1)
 
-    # ---- last_only mode (default for new rooms) ----
+    # ---- the bell judges the newest order's animal, and only that ----
 
     def _mkstate_last(self, stocks, orders):
-        s = _mkstate(stocks, orders)
-        s["ruleMode"] = "last_only"
-        return s
+        return _mkstate(stocks, orders)
 
     def test_last_only_ignores_earlier_oversell(self):
         # Zebra is oversold, but the LAST order is a safe Toucan -> ringer blamed.
+        # An earlier column going over is simply not looked at.
         s = self._mkstate_last(
             [{"id": "s1", "halves": [{"animal": "toucan", "count": 2}, {"animal": "toucan", "count": 1}]},
              {"id": "s2", "halves": [{"animal": "zebra", "count": 1}, {"animal": "zebra", "count": 1}]}],
             [("zebra", 3, "p1"), ("toucan", 1, "p2")])
         r = resolve_bell(s, "p1")
-        self.assertEqual(r["ruleMode"], "last_only")
         self.assertEqual(r["checkedAnimal"], "toucan")
         self.assertFalse(r["oversold"])
         self.assertEqual(r["blamedId"], "p1")
-        # same board under classic rules IS oversold (zebra), blamed = last orderer
-        s2 = _mkstate(
-            [{"id": "s1", "halves": [{"animal": "toucan", "count": 2}, {"animal": "toucan", "count": 1}]},
-             {"id": "s2", "halves": [{"animal": "zebra", "count": 1}, {"animal": "zebra", "count": 1}]}],
-            [("zebra", 3, "p1"), ("toucan", 1, "p2")])
-        s2["ruleMode"] = "classic"
-        r2 = resolve_bell(s2, "p1")
-        self.assertTrue(r2["oversold"])
-        self.assertEqual(r2["blamedId"], "p2")
+        self.assertNotIn("ruleMode", r)
+        # zebra really was over — it is just not the judged column
+        self.assertGreater(r["ordersTally"]["zebra"], r["stockTally"]["zebra"])
 
     def test_last_only_catches_bad_last_order(self):
         s = self._mkstate_last(
@@ -391,7 +380,7 @@ class TestBotLogic(unittest.TestCase):
                 "lastOrderBy": None, "nextTokenValue": 1, "round": 1,
                 "pendingDraw": None, "lastResolution": None,
                 "turnDeadline": None, "aiActAt": None, "revealAt": None,
-                "ruleMode": "last_only", "winners": [], "loserId": None}
+                "winners": [], "loserId": None}
 
     def _order(self, st, animal, count, by="hum"):
         i = len(st["orders"])
@@ -415,14 +404,13 @@ class TestBotLogic(unittest.TestCase):
         self._order(st2, "toucan", 1)
         self.assertFalse(ai_should_ring(st2, "bot"))
 
-    def test_ring_classic_any_column(self):
+    def test_bot_ignores_earlier_columns_too(self):
         from server import ai_should_ring
         st = self._botstate()
-        st["ruleMode"] = "classic"
         self._order(st, "zebra", 3)
-        self._order(st, "zebra", 3)  # zebra stock visible = 2, 6 > 2+3
-        self._order(st, "toucan", 1)  # last is safe, classic still rings
-        self.assertTrue(ai_should_ring(st, "bot"))
+        self._order(st, "zebra", 3)  # zebra visibly over: 6 > 2 + 3 hideable
+        self._order(st, "toucan", 1)  # ...but the newest order is safe
+        self.assertFalse(ai_should_ring(st, "bot"))
 
     def test_pick_half_with_headroom(self):
         from server import _ai_pick_half

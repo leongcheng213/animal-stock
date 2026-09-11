@@ -85,14 +85,6 @@
       <div id="lobby-code" class="roomcode">····</div>
     </div>
     <div id="lobby-players" class="plist"></div>
-    <div class="moderow">
-      <div class="lbl">BELL CHECKS <span id="mode-note">(host sets)</span></div>
-      <div class="segrow">
-        <button id="mode-last" class="seg">Last order only</button>
-        <button id="mode-classic" class="seg">All animals</button>
-      </div>
-      <p class="hint" id="mode-hint">Last order only: the bell judges just the newest order's animal. All animals: classic Durian-style full check.</p>
-    </div>
     <button id="btn-start" class="btn primary big">Start game</button>
     <button id="btn-leave1" class="btn ghost">Leave</button>
     <p class="hint">2–6 players · host starts · keep this tab open, phones lock a lot — reconnect is automatic. Leave mid-game and a 🤖 bot takes your seat; anyone can rejoin later and take it back.</p>
@@ -103,14 +95,13 @@
   <section id="screen-game" class="screen game-screen">
     <header id="hud">
       <div class="hud-top">
-        <div><span id="hud-round" class="pill">R1</span> <span id="hud-mode" class="pill mode">LAST</span></div>
+        <div><span id="hud-round" class="pill">R1</span></div>
         <div class="hud-right">
           <span id="hud-deck" class="pill" title="cards left in deck">🂠 37</span>
           <button id="btn-mute" class="iconbtn" title="sound on/off">🔔</button>
           <button id="btn-exit" class="iconbtn" title="exit game">✕</button>
         </div>
       </div>
-      <div id="side-tally" class="side-tally"></div>
     </header>
 
     <div id="table-wrap">
@@ -121,6 +112,7 @@
       <div id="stocks" class="stocks onfelt"></div>
 
       <div class="board-label onfelt">ORDER BOARD</div>
+      <div id="side-tally" class="side-tally"></div>
       <div id="orders" class="orders onfelt"></div>
 
       <div id="flipbar" class="flipbar hidden">
@@ -258,7 +250,7 @@
 </div>
 
 <!-- bump ?v= every time client JS changes so phones refetch it -->
-<script src="animals.js?v=13"></script>
-<script type="module" src="app.js?v=13"></script>
+<script src="animals.js?v=19"></script>
+<script type="module" src="app.js?v=19"></script>
 </body>
 </html>

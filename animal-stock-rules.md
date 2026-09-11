@@ -99,15 +99,9 @@ which is what makes the last person to add to the board the one on the hook.
 Only that one animal matters. Grand totals don't — five animals in stock doesn't help if
 three crocodiles were promised and only two exist.
 
-> **Host option — check every animal.** In the lobby, the host can switch the bell from
-> *Last order only* to *All animals*. Then all four are compared at once and any single
-> animal being over makes the promises bad. Bells land far more often, so rounds end
-> sooner and ringing is much safer.
-
 **If the promises are bad** → the player who took the **last** request is blamed. Not
 whoever technically broke it. The moment you add to the board instead of ringing the bell,
-you take responsibility for everything already on it. (Under *All animals*, the blame goes
-to whoever placed the most recent request that still counts.)
+you take responsibility for everything already on it.
 
 **If the promises are fine** → the person who rang the bell is blamed. You dragged the
 manager out for nothing.
@@ -201,8 +195,7 @@ the truth.
 
 - One half of every card always shows exactly one animal.
 - Stock counts both halves. A request counts one half.
-- The bell judges the **newest request's animal** only — never the total. (Hosts can
-  switch it to all four animals in the lobby.)
+- The bell judges the **newest request's animal** only — never the total.
 - Promises bad → blame the last player to take a request.
 - Promises fine → blame the bell-ringer.
 - A drawn sibling flips a request to its other half, and blocks the next player's bell.

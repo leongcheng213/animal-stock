@@ -16,10 +16,9 @@ functions (e.g. Vercel defaults) will not hold WebSockets (spec section 12).
 Protocol (JSON text frames):
   C->S: CREATE {name} | JOIN {room, name, playerId?} | START | TAKE_ORDER
         | CHOOSE_HALF {halfIndex} | HIPPO_FLIP {orderIndex|null} | RING_BELL
-        | NEXT_ROUND | RESTART | LEAVE | SET_MODE {mode}
+        | NEXT_ROUND | RESTART | LEAVE
         | ADD_BOTS {count} | REMOVE_BOT {playerId} | RESULTS
-        ruleMode is "last_only" (default: only the last order's animal is
-        checked) or "classic" (spec section 8: every animal checked).
+        The bell always judges the last face-up order's animal only.
         LEAVE mid-game turns your seat into a bot (game continues);
         JOIN mid-game takes over a bot seat. Reconnect with your playerId
         to reclaim a disconnected seat. ADD_BOTS fills lobby seats with
@@ -51,7 +50,7 @@ import sys
 sys.path.insert(0, BASE_DIR)
 from shared.game_logic import (
     setup_round, resolve_bell, redact_for_viewer, make_room_code,
-    is_hippo, RULE_MODES, DEFAULT_RULE_MODE, ANIMALS, hippo_flip_order,
+    is_hippo, ANIMALS, hippo_flip_order,
 )
 
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -370,10 +369,7 @@ def ai_should_ring(state, pid):
         return False
     vt = _visible_stock(state, pid)
     ft = _faceup_tally(state)
-    if (state.get("ruleMode", DEFAULT_RULE_MODE)) == "last_only":
-        checked = [face[-1]["animal"]]
-    else:
-        checked = list(ANIMALS)
+    checked = [face[-1]["animal"]]   # the bell judges the newest order only
     # provable: bigger than any single hidden card could be covering
     if any(ft[a] > vt[a] + MAX_HIDDEN_PER_ANIMAL for a in checked):
         return True
@@ -944,23 +940,6 @@ def handle_message(conn, msg):
             maybe_schedule_ai(state)
         broadcast(room_code)
         return
-    if mtype == "SET_MODE":
-        mode = msg.get("mode")
-        with room["lock"]:
-            state = room["state"]
-            if state["phase"] != "lobby":
-                error_to(conn, "Rules can only be changed in the lobby.")
-                return
-            if pid != state["hostId"]:
-                error_to(conn, "Only the host can change the rules.")
-                return
-            if mode not in RULE_MODES:
-                error_to(conn, "Unknown rule mode.")
-                return
-            state["ruleMode"] = mode
-        broadcast(room_code)
-        return
-
     if mtype == "ADD_BOTS":
         try:
             count = int(msg.get("count", 0))

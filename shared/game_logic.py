@@ -13,8 +13,8 @@ Rules enforced here:
   - Stock counts BOTH halves; orders count only the chosen half
   - Hippo-as-order flips a face-up order face-down (or discards if none)
   - Hippo-as-stock: Bo cancels count==3 orders, Pip cancels zebra orders, Dozy nothing
-  - Verdict is per-animal-type oversell; blamed = last face-up orderer if
-    oversold else ringer
+  - Verdict checks the last face-up order's animal only; blamed = that
+    order's placer if oversold, else the ringer
   - Tokens 1..7 in order, game ends when any total >= 7, fewest wins
 """
 
@@ -50,11 +50,9 @@ HIPPO_CARDS = [
 
 ROOM_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
-# Bell-check scope (see resolve_bell). "classic" is spec section 8 as written
-# (every animal type checked). "last_only" checks only the last face-up
-# order's animal — simpler and the default for new rooms.
-RULE_MODES = ("classic", "last_only")
-DEFAULT_RULE_MODE = "last_only"
+# The bell judges ONLY the last face-up order's animal. The spec's section 8
+# scope (every animal type checked) was offered as a lobby option for a while;
+# it is gone — this is the single rule now. See CLAUDE.md house rules.
 
 
 def is_hippo(card):
@@ -132,7 +130,6 @@ def new_room_state(room_code, host_id, host_name):
         "revealAt": None,      # when the current reveal started (auto-advance)
         "noRingFor": None,     # player id that may not ring this turn (post-Hippo)
         "noRingBy": None,      # who played the Hippo causing it
-        "ruleMode": DEFAULT_RULE_MODE,  # host can switch in lobby (SET_MODE)
         "winners": [],
         "loserId": None,
     }
@@ -250,13 +247,11 @@ def hippo_flip_order(state, idx, hippo_card_id):
     state["hippoDiscards"].append(hippo_card_id)
 
 
-def resolve_bell(state, ringer_id, rule_mode=None):
+def resolve_bell(state, ringer_id):
     """
-    Resolution algorithm (spec section 8) with two check scopes:
-      "classic"   — every animal type is checked (spec as written).
-      "last_only" — only the LAST face-up order's animal is checked.
-    Blame is the same in both: oversold -> the placer of the last face-up
-    order takes the token, otherwise the ringer does.
+    Resolution algorithm (spec section 8, narrowed): only the LAST face-up
+    order's animal is checked. Oversold -> the placer of that order takes the
+    token, otherwise the ringer does.
     Returns resolution dict and mutates state (tokens, phase).
     Raises ValueError on illegal bell (empty face-up board).
     """
@@ -265,38 +260,17 @@ def resolve_bell(state, ringer_id, rule_mode=None):
     # but hippo-cancelled-by-stock still sit face-up until this step.
     if not face_up:
         raise ValueError("Bell is illegal with no face-up orders")
-    mode = rule_mode or state.get("ruleMode", DEFAULT_RULE_MODE)
-    if mode not in RULE_MODES:
-        mode = DEFAULT_RULE_MODE
     eff = effective_orders(state)
     st = stock_tally(state)
     ot = {a: 0 for a in ANIMALS}
     for o in eff:
         ot[o["animal"]] += o["count"]
     last_face = face_up[-1]  # orders are appended in placement order
-    if mode == "last_only":
-        checked = [last_face["animal"]]
-    else:
-        checked = list(ANIMALS)
+    checked = [last_face["animal"]]
     oversold_animals = [a for a in checked if ot[a] > st[a]]
     oversold = len(oversold_animals) > 0
     if oversold:
-        if mode == "last_only":
-            blamed = last_face["placedBy"]
-        else:
-            # most recent order still effective (after stock-hippo cancels, the
-            # face-down-by-hippo orders are already excluded; stock-cancelled
-            # orders are excluded from blame consideration too)
-            eff_ids = set(id(o) for o in eff)
-            blamed = None
-            for o in reversed(state["orders"]):
-                if id(o) in eff_ids:
-                    blamed = o["placedBy"]
-                    break
-            # fallback: last face-up if everything was stock-cancelled — but then
-            # ot would be 0 and oversold False, so this path is unreachable.
-            if blamed is None:
-                blamed = state["lastOrderBy"]
+        blamed = last_face["placedBy"]
         verdict = "MANAGER IS FURIOUS — the orders were bad"
     else:
         blamed = ringer_id
@@ -314,8 +288,7 @@ def resolve_bell(state, ringer_id, rule_mode=None):
     resolution = {
         "oversold": oversold,
         "oversoldAnimals": oversold_animals,
-        "checkedAnimal": last_face["animal"] if mode == "last_only" else None,
-        "ruleMode": mode,
+        "checkedAnimal": last_face["animal"],
         "stockTally": st,
         "ordersTally": ot,
         "blamedId": blamed,
@@ -420,7 +393,6 @@ def redact_for_viewer(state, viewer_id):
         "pendingDrawCardId": pd["cardId"] if (pd and pd["by"] == viewer_id) else None,
         "activeChoosing": bool(pd),
         "turnDeadline": state.get("turnDeadline"),
-        "ruleMode": state.get("ruleMode", DEFAULT_RULE_MODE),
         "noRingFor": state.get("noRingFor"),
         "noRingBy": state.get("noRingBy"),
         "winners": list(state.get("winners", [])),

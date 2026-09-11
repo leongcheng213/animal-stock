@@ -325,8 +325,6 @@ $('btn-start-bots').onclick = () => {
   pendingBotAt = Date.now();
   sendLobby({ type: 'CREATE', name: playerName });
 };
-$('mode-last').onclick = () => send({ type: 'SET_MODE', mode: 'last_only' });
-$('mode-classic').onclick = () => send({ type: 'SET_MODE', mode: 'classic' });
 $('btn-leave1').onclick = () => { send({ type: 'LEAVE' }); roomCode = null; sessionStorage.removeItem('as_room'); show('join'); };
 $('btn-exit').onclick = () => $('modal-exit').classList.remove('hidden');
 $('btn-exit-no').onclick = () => $('modal-exit').classList.add('hidden');
@@ -461,13 +459,6 @@ function render() {
       `<div class="prow"><span>${p.id === state.hostId ? '👑 ' : ''}${escapeHtml(p.name)}${aiMark(p)}${p.id === state.youId ? ' (you)' : ''}</span><span class="toks">${connMark(p)}${scoreStr(p)}</span></div>`).join('');
     $('btn-start').style.display = state.youId === state.hostId ? '' : 'none';
     $('btn-start').disabled = state.players.length < 2;
-    const isHost = state.youId === state.hostId;
-    const lastOnly = (state.ruleMode || 'last_only') === 'last_only';
-    $('mode-last').classList.toggle('sel', lastOnly);
-    $('mode-classic').classList.toggle('sel', !lastOnly);
-    $('mode-last').disabled = !isHost;
-    $('mode-classic').disabled = !isHost;
-    $('mode-note').textContent = isHost ? '(host sets)' : '(host only)';
     if (pendingBotTotal && state.players.length >= pendingBotTotal) {
       pendingBotTotal = 0;
       if (state.youId === state.hostId) send({ type: 'START' });
@@ -476,9 +467,6 @@ function render() {
   }
   show('game');
   $('hud-round').textContent = 'R' + state.round + ' · next ⚡' + state.nextTokenValue;
-  $('hud-mode').textContent = (state.ruleMode || 'last_only') === 'last_only' ? 'LAST' : 'ALL';
-  $('hud-mode').title = (state.ruleMode || 'last_only') === 'last_only'
-    ? 'Bell checks only the last order\u2019s animal' : 'Bell checks every animal';
   $('hud-deck').textContent = '🂠 ' + state.deckCount;
   $('take-count').textContent = '🂠 ' + state.deckCount;
 
@@ -735,10 +723,7 @@ function renderOrdersInto(el, flipMode) {
   // reveal audit: spotlight the judged animal's rows, dim everything else
   // (reveal only — the game-over sheet keeps its full veil)
   const res = state.phase === 'reveal' ? state.lastResolution : null;
-  const judged = res
-    ? new Set(res.ruleMode === 'classic' ? res.oversoldAnimals
-                                         : (res.checkedAnimal ? [res.checkedAnimal] : []))
-    : null;
+  const judged = res ? new Set(res.checkedAnimal ? [res.checkedAnimal] : []) : null;
   // newest round at the bottom: picked half full-size, unpicked half faded left
   state.orders.forEach((o, i) => {
     const row = document.createElement('div');
@@ -792,9 +777,8 @@ function renderSideTally() {
   if (!state || state.phase === 'lobby') { el.innerHTML = ''; return; }
   const t = ordersTallyLocal();
   const lastFace = [...(state.orders || [])].reverse().find(o => o.faceUp);
-  const lastOnly = (state.ruleMode || 'last_only') === 'last_only';
   el.innerHTML = ['toucan', 'zebra', 'crocodile', 'lion'].map(a =>
-    `<div class="strow${lastOnly && lastFace && lastFace.animal === a ? ' live' : ''}" title="${a} ordered">${window.AnimalArt.icon(a, 1, 22)}<b>${t[a] || 0}</b></div>`).join('');
+    `<div class="strow${lastFace && lastFace.animal === a ? ' live' : ''}" title="${a} ordered">${window.AnimalArt.icon(a, 1, 22)}<b>${t[a] || 0}</b></div>`).join('');
 }
 
 function renderFlipbar(flipMode) {
@@ -1032,9 +1016,7 @@ function openReveal(isNew) {
   $('rv-verdict').style.color = color;
   // the audit shows everyone's revealed stocks (3 per row, full width);
   // the judged animal stays bright, every other half is dimmed
-  const judgedAudit = r.ruleMode === 'classic'
-    ? new Set(r.oversoldAnimals)
-    : new Set(r.checkedAnimal ? [r.checkedAnimal] : []);
+  const judgedAudit = new Set(r.checkedAnimal ? [r.checkedAnimal] : []);
   const dim = judgedAudit.size ? judgedAudit : null;
   const tiles = state.players.map(p => {
     const card = p.stockCardId ? state.cards[p.stockCardId] : null;
@@ -1110,7 +1092,6 @@ function wBase() {
     lastOrderBy: null, lastResolution: null, turnDeadline: null,
     hasPendingDraw: false, pendingDrawCardId: null, activeChoosing: false,
     noRingFor: null, noRingBy: null, winners: [], loserId: null,
-    ruleMode: 'last_only',
   };
 }
 // place an order exactly the way the server's _append_order does
@@ -1227,7 +1208,6 @@ const WALK = [
       s.phase = 'reveal';
       s.lastResolution = {
         oversold: true, oversoldAnimals: ['zebra'], checkedAnimal: 'zebra',
-        ruleMode: 'last_only',
         stockTally: { toucan: 4, zebra: 1, crocodile: 2, lion: 0 },
         ordersTally: { toucan: 4, zebra: 3, crocodile: 0, lion: 1 },
         blamedId: 'ann', ringerId: 'you', tokenGiven: 1,
@@ -1246,7 +1226,6 @@ const WALK = [
       s.phase = 'reveal';
       s.lastResolution = {
         oversold: true, oversoldAnimals: ['zebra'], checkedAnimal: 'zebra',
-        ruleMode: 'last_only',
         stockTally: { toucan: 4, zebra: 1, crocodile: 2, lion: 0 },
         ordersTally: { toucan: 4, zebra: 3, crocodile: 0, lion: 1 },
         blamedId: 'ann', ringerId: 'you', tokenGiven: 1,

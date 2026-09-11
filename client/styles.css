@@ -170,9 +170,13 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 /* tally bar under the token track: always visible, never overlapping */
 /* in the audit, the board stocks move into the sheet — hide them on the felt */
 #table-wrap.noboardstocks #stocks,#table-wrap.noboardstocks .stocks-label{display:none;}
-.side-tally{display:flex;gap:6px;margin-top:6px;}
+/* the promised-so-far counts sit on the felt under the ORDER BOARD heading,
+   heading the columns they describe, rather than up in the HUD */
+.side-tally{display:flex;gap:6px;margin:0 0 8px;}
 .strow{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:5px;color:#fff;font-size:14px;font-weight:800;background:rgba(34,48,60,.88);border-radius:10px;padding:4px 6px;}
-.strow.live{box-shadow:0 0 0 2px #2E9E5B;}
+/* the column the bell would judge: a white chip with a green frame, so it
+   reads as the live one both by fill and by outline */
+.strow.live{background:var(--card);color:var(--ink);box-shadow:0 0 0 2px #2E9E5B;}
 /* hippo flip-select: only the clicked row is marked — its right box takes
    the usual shaded+dashed dead look (with a red frame); left stays as-is */
 .orow.flipcand .pick{cursor:pointer;}
@@ -279,9 +283,6 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 .sheet.full .hpick{padding:14px;font-size:17px;}
 .hpick{border:2px solid #E5DCCB;border-radius:12px;background:var(--card);padding:10px;font-size:15px;cursor:pointer;text-align:left;min-width:0;overflow:hidden;overflow-wrap:anywhere;}
 .hpick.sel{border-color:var(--accent);}
-.pill.mode{background:var(--gold);color:var(--ink);}
-.moderow{background:var(--card);border:2px solid #EFE7D6;border-radius:var(--rad);padding:10px 12px;margin:12px 0 16px;}
-.moderow .lbl{font-size:12px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;}
 .segrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 #play-tabs{margin:2px 0 4px;}
 #panel-bots .lbl{font-size:12px;letter-spacing:2px;color:var(--muted);margin:12px 0 8px;}

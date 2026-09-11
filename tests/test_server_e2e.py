@@ -283,25 +283,9 @@ def main():
         assert st is not None, "no STATE after join"
         assert len(st["players"]) == 2, st["players"]
         print("lobby players:", [p["name"] for p in st["players"]])
-        assert st.get("ruleMode") == "last_only", st.get("ruleMode")
-
-        # host can switch bell-check rules in the lobby
-        a.send({"type": "SET_MODE", "mode": "classic"})
-        time.sleep(0.3)
-        s1, _ = a.drain_states()
-        s2, _ = b.drain_states()
-        st = s1 or s2
-        assert st["ruleMode"] == "classic", st
-        # non-host cannot switch
-        b.send({"type": "SET_MODE", "mode": "last_only"})
-        errm = b.next_of(("ERROR", "STATE"))
-        assert errm["type"] == "ERROR", errm
-        a.send({"type": "SET_MODE", "mode": "last_only"})
-        time.sleep(0.3)
-        s1, _ = a.drain_states()
-        st = s1 or st
-        assert st["ruleMode"] == "last_only", st
-        print("rule-mode switch OK (default last_only)")
+        # the bell rule is fixed now: no mode is advertised to clients at all
+        assert "ruleMode" not in st, st
+        print("no rule-mode switch: the bell always judges the newest order")
 
         # host starts
         a.send({"type": "START"})
