@@ -827,6 +827,10 @@ function renderButtons() {
 // real deadline, so a mismatch is cosmetic.
 const TURN_WINDOW = 30;
 setInterval(tickTimer, 50);
+// a 50ms poll cannot keep a fixed-position frame glued to a scrolling target —
+// it lags a frame behind and visibly judders. Repaint on the scroll itself.
+window.addEventListener('scroll', () => tickTimer(), { passive: true });
+window.addEventListener('resize', () => tickTimer());
 function tickTimer() {
   const ov = $('turnframe');
   if (!state || state.phase !== 'playing' || !state.turnDeadline) {
@@ -834,6 +838,10 @@ function tickTimer() {
     return;
   }
   const left = state.turnDeadline - Date.now() / 1000;
+  // A round's first deadline has the dealing animation baked into it, so more
+  // than a full turn's worth of time left means the cards are still flying.
+  // Framing a seat mid-deal drew a box around a tile that was not there yet.
+  if (left > TURN_WINDOW + 0.15) { ov.classList.add('hidden'); return; }
   const frac = Math.max(0, Math.min(1, left / TURN_WINDOW));
   let tel = null;
   if (!$('modal-draw').classList.contains('hidden') && state.hasPendingDraw) {
@@ -851,11 +859,15 @@ function tickTimer() {
   if (!tel) { ov.classList.add('hidden'); return; }
   const r = tel.getBoundingClientRect();
   if (!r.width || !r.height) { ov.classList.add('hidden'); return; }
+  // the frame is position:fixed, so once its target scrolls off it would hang
+  // over whatever is there instead — the HUD, usually
+  if (r.bottom < 8 || r.top > window.innerHeight - 8) { ov.classList.add('hidden'); return; }
   ov.classList.remove('hidden');
   const pad = 5;
-  const W = r.width + pad * 2, H = r.height + pad * 2;
-  ov.style.left = (r.left - pad) + 'px';
-  ov.style.top = (r.top - pad) + 'px';
+  // whole pixels: sub-pixel rects made the frame shimmer as the page scrolled
+  const W = Math.round(r.width) + pad * 2, H = Math.round(r.height) + pad * 2;
+  ov.style.left = Math.round(r.left - pad) + 'px';
+  ov.style.top = Math.round(r.top - pad) + 'px';
   ov.style.width = W + 'px';
   ov.style.height = H + 'px';
   if (ov._tel !== tel) {
