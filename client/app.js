@@ -7,7 +7,23 @@ function paintBuildTag() {
 }
 const $ = (id) => document.getElementById(id);
 const screens = { splash: $('screen-splash'), join: $('screen-join'), code: $('screen-code'), lobby: $('screen-lobby'), game: $('screen-game') };
-function show(name) { for (const k in screens) screens[k].classList.toggle('active', k === name); }
+// Sheets that belong to a game in progress. #modal-reveal is display:block with
+// a position:fixed sheet, so hiding the game screen alone leaves it on top of
+// whatever comes next — the reveal used to follow you out to the join screen.
+const GAME_OVERLAYS = ['modal-reveal', 'modal-over', 'modal-draw', 'modal-hippo',
+                       'modal-bell', 'modal-exit'];
+function closeGameOverlays() {
+  GAME_OVERLAYS.forEach(id => $(id).classList.add('hidden'));
+  $('modal-hippo').classList.remove('tappable');
+  hippoOverlayMode = null;
+}
+function show(name) {
+  if (name !== 'game') closeGameOverlays();
+  for (const k in screens) screens[k].classList.toggle('active', k === name);
+  // the table is a fixed canvas: the page itself must not scroll behind it,
+  // or the turn frame ends up drawn over the HUD
+  document.body.classList.toggle('in-game', name === 'game');
+}
 
 // splash: floating pink pig, tap to jump in
 $('pig-splash').innerHTML = window.AnimalArt.shape('hippo', 180, 'bo');
@@ -397,7 +413,9 @@ function openDrawModal() {
   if (state.dummyStockCardId && state.cards[state.dummyStockCardId]) {
     const d = document.createElement('div');
     d.className = 'stock';
-    d.innerHTML = `<div class="nm">spare</div>` + cardHalvesHTML(state.cards[state.dummyStockCardId]);
+    // empty token row keeps the spare's halves on the same line as everyone's
+    d.innerHTML = `<div class="nm">spare</div>` + cardHalvesHTML(state.cards[state.dummyStockCardId]) +
+      `<div class="tchips"></div>`;
     ds.appendChild(d);
   }
   // order board snapshot for reference (read-only; nothing moves mid-pick)
@@ -523,7 +541,7 @@ function cardHalvesHTML(card, dimExcept, iconPx) {
   if (card.hippo) return `<div class="cd">${window.AnimalArt.shape('hippo', 40, card.hippo)}</div>`;
   const px = iconPx || 22;
   return `<div class="cd">` + card.halves.map(h =>
-    `<span class="halfchip${dimExcept && !dimExcept.has(h.animal) ? ' dimhalf' : ''}">${window.AnimalArt.icon(h.animal, h.count, px)}</span>`).join('') + `</div>`;
+    `<span class="halfchip${dimExcept ? (dimExcept.has(h.animal) ? ' judgedhalf' : ' dimhalf') : ''}">${window.AnimalArt.icon(h.animal, h.count, px)}</span>`).join('') + `</div>`;
 }
 
 const HIPPO_INFO = {
@@ -678,7 +696,7 @@ function renderStocks() {
     const d = document.createElement('div');
     d.className = 'stock';
     const dc = state.cards[state.dummyStockCardId];
-    d.innerHTML = `<div class="nm">spare</div>` + cardHalvesHTML(dc);
+    d.innerHTML = `<div class="nm">spare</div>` + cardHalvesHTML(dc) + `<div class="tchips"></div>`;
     if (dc.hippo) attachHippoNote(d, dc.hippo);
     el.appendChild(d);
   }
@@ -995,7 +1013,7 @@ function openReveal(isNew) {
     const dc = state.cards[state.dummyStockCardId];
     const hip = dc.hippo ? ` data-hippo="${dc.hippo}"` : '';
     tiles.push(`<div class="stock"${hip}><div class="nm">spare</div>` +
-      cardHalvesHTML(dc, dim, 16) + `</div>`);
+      cardHalvesHTML(dc, dim, 16) + `<div class="tchips"></div></div>`);
   }
   $('rv-tally').innerHTML = `<div class="stocks audit">${tiles.join('')}</div>`;
   $('rv-tally').querySelectorAll('[data-hippo]').forEach(el =>

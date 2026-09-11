@@ -7,6 +7,11 @@
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;}
 #app{max-width:480px;margin:0 auto;min-height:100dvh;position:relative;padding-bottom:24px;}
+/* In game the table is a fixed canvas that always fits the screen: nothing
+   scrolls except the order board itself (see #orders). A scrolling page
+   dragged the fixed-position turn frame across the HUD. */
+body.in-game{overflow:hidden;}
+body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 .screen{display:none;padding:16px 14px 28px;}
 .screen.active{display:block;}
 /* splash: big floating pink pig, tap to jump in */
@@ -73,11 +78,16 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 .status{font-size:15px;font-weight:700;min-height:22px;}
 
 /* ---- unified game table: one flat felt background, everything on it ---- */
-.screen.game-screen.active{display:flex;flex-direction:column;min-height:100dvh;padding:10px 10px calc(10px + env(safe-area-inset-bottom));}
+.screen.game-screen.active{display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;padding:10px 10px calc(10px + env(safe-area-inset-bottom));}
 #hud{padding:2px 2px 6px;}
-#table-wrap{position:relative;flex:1 0 auto;display:flex;flex-direction:column;
+#table-wrap{position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
   padding:10px 10px 12px;border-radius:18px;background:#E7D8BC;
   border:2px solid #D8C9A8;box-shadow:inset 0 0 40px rgba(120,90,40,.18);}
+/* everything on the felt keeps its size; only the order board gives */
+#table-wrap > .board-label,#table-wrap > #stocks,#table-wrap > .flipbar,
+#table-wrap > .side-tally,#table-wrap > .takebtn{flex:none;}
+#table-wrap > #orders{flex:1 1 auto;min-height:64px;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;padding-bottom:2px;}
 .hidden{display:none !important;}
 
 /* ring bell: just the bell, pinned to the table's own top-right corner —
@@ -94,8 +104,11 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 #table-wrap > .bellbtn.shake{animation:bellshake .5s ease-in-out;}
 @keyframes bellshake{0%,100%{transform:rotate(0)}25%{transform:rotate(-22deg) scale(1.18)}50%{transform:rotate(16deg)}75%{transform:rotate(-10deg)}}
 
+/* the right margin used to be one-sided to dodge the bell, which pushed the
+   pill off the centre of the table; matching it on both sides keeps it
+   centred and still clear of the bell */
 .status.overlay{align-self:center;background:rgba(34,48,60,.88);color:#fff;border-radius:999px;
-  padding:6px 14px;font-size:14px;font-weight:700;margin:2px 76px 0 0;min-height:0;text-align:center;}
+  padding:6px 14px;font-size:14px;font-weight:700;margin:2px 62px 0;min-height:0;text-align:center;}
 
 .board-label{font-size:11px;letter-spacing:2px;color:var(--muted);margin:12px 0 6px;}
 .board-label.onfelt{display:inline-block;background:rgba(34,48,60,.78);color:#F5EEDF;border-radius:8px;
@@ -114,20 +127,30 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 .stock .cd{display:flex;justify-content:center;gap:2px;min-height:52px;flex:1;align-items:center;flex-wrap:wrap;}
 .ownhide{line-height:0;display:inline-block;}
 .halfchip{border-radius:8px;padding:2px 4px;margin:1px;background:#F5EEDF;}
-.halfchip .anicons{display:inline-flex;gap:1px;align-items:center;}
+.halfchip{display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.halfchip .anicons{display:inline-flex;gap:1px;align-items:center;justify-content:center;}
 .halfchip small{display:block;font-size:10px;color:var(--muted);}
-.halfchip.dimhalf{opacity:.35;filter:grayscale(.7);}
+/* A round ends when the judged animal is OVERSOLD — i.e. hardly in anyone's
+   stock — so dimming everything else used to grey out the whole audit and the
+   calculation looked blank. Keep the others readable and mark the judged ones
+   positively instead. */
+.halfchip.dimhalf{opacity:.62;filter:grayscale(.3);}
+.halfchip.judgedhalf{background:#E4F1E9;box-shadow:inset 0 0 0 2px #2E9E5B;}
 .orders{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:70px;}
 .orders.drawlist{display:flex;flex-direction:column;gap:8px;align-items:center;}
 /* order history: one vertical middle column — picked half full, unpicked faded left */
 .orders.onfelt{display:flex;flex-direction:column;gap:8px;align-items:center;}.orders.onfelt .orow,.orders.drawlist .orow{display:flex;gap:8px;align-items:stretch;width:min(340px,100%);max-width:100%;}
+/* centre the artwork in the cell properly: vertical-align:middle sits on the
+   text baseline, which left icons a few px high in every row */
 .orow .disc{flex:0 0 92px;min-width:0;opacity:.5;background:rgba(255,253,246,.9);
   border:2px dashed rgba(34,48,60,.4);border-radius:12px;padding:6px 4px;text-align:center;
-  font-size:11px;color:var(--muted);}
+  font-size:11px;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .orow .disc small{display:block;font-size:10px;}
 .orow .disc.empty{visibility:hidden;}
 .orow .pick{flex:1;min-width:0;background:rgba(255,253,246,.95);border:2px solid #C9C0AE;
-  border-radius:12px;padding:6px;text-align:center;position:relative;}
+  border-radius:12px;padding:6px;text-align:center;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .orow.down .pick{opacity:.5;filter:grayscale(1);border-color:#ccc;}
 .orow .cancelled-tag{position:absolute;top:2px;right:4px;font-size:12px;}
 .orow .who{font-size:10px;color:var(--muted);}
@@ -168,7 +191,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 .anicons{display:inline-flex;flex-wrap:wrap;justify-content:center;gap:1px;align-items:center;max-width:100%;}
 
 /* graphic take button: a shaded stack of cards, bottom of the table */
-.takebtn{margin:auto  auto 0;width:min(330px,88%);min-height:70px;border:0;border-radius:14px;
+.takebtn{margin:10px auto 0;width:min(330px,88%);min-height:70px;border:0;border-radius:14px;
   background:#3E4A5A;color:#fff;font-size:21px;font-weight:900;letter-spacing:3px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:12px;
   box-shadow:5px 5px 0 #2b3542,10px 10px 0 rgba(34,48,60,.22);}
@@ -340,3 +363,16 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
 /* the walkthrough is a different kind of action from create/join —
    give it real air so it never reads as a third way into a game */
 #btn-walk{margin-top:30px;margin-bottom:8px;}
+
+/* Scrollbars: a thin, low-contrast thumb over a transparent track, so a long
+   order board does not get a chunky OS bar down the middle of the felt. */
+#table-wrap > #orders,.sheet,.sheet.full,.tour-box{
+  scrollbar-width:thin;scrollbar-color:rgba(90,70,40,.28) transparent;}
+#table-wrap > #orders::-webkit-scrollbar,.sheet::-webkit-scrollbar,
+.tour-box::-webkit-scrollbar{width:5px;height:5px;}
+#table-wrap > #orders::-webkit-scrollbar-track,.sheet::-webkit-scrollbar-track,
+.tour-box::-webkit-scrollbar-track{background:transparent;}
+#table-wrap > #orders::-webkit-scrollbar-thumb,.sheet::-webkit-scrollbar-thumb,
+.tour-box::-webkit-scrollbar-thumb{background:rgba(90,70,40,.26);border-radius:99px;}
+#table-wrap > #orders::-webkit-scrollbar-thumb:hover,.sheet::-webkit-scrollbar-thumb:hover,
+.tour-box::-webkit-scrollbar-thumb:hover{background:rgba(90,70,40,.42);}
