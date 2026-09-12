@@ -21,6 +21,7 @@
 
     hippo: "#FF3B5C", hippoDark: "#B3123F", hippoCream: "#FFF1F3",
     back: "#3E4A5A", backCream: "#F1E4C8", ink: "#22303C", paper: "#FFFDF6",
+    danger: "#FF4040", carrotTop: "#88AC3F",
 
     // dominant colour per species, taken from the artwork, for any UI that
     // wants to key off a species colour
@@ -29,10 +30,13 @@
   };
   // each Hippo sibling gets its own colour so its function reads at a glance:
   // Bo = crimson (cancels), Pip = violet (zebra-foe), Dozy = sleepy grey (harmless)
+  // Bo carries the artwork's own colours; Pip and Dozy keep their identity hue
+  // but take their dark and cream from the same relationship the drawing uses
+  // (dark = hue -6.7deg, sat x.82, light x.63; cream = the hue at 97% light).
   const HIPPO_C = {
-    bo:   { main: "#E63A6B", dark: "#A91E47", cream: "#FFF1F3" },
-    pip:  { main: "#8E44CC", dark: "#5E2E99", cream: "#FFF1F3" },
-    dozy: { main: "#9AA7B5", dark: "#6B7885", cream: "#F4F7F9" },
+    bo:   { main: "#FF3B5C", dark: "#B3123F", cream: "#FFF1F3" },
+    pip:  { main: "#8E44CC", dark: "#502D7D", cream: "#F9F4FC" },
+    dozy: { main: "#9AA7B5", dark: "#5C6C76", cream: "#F7F8F9" },
   };
   window.ANIMAL_COLORS = C;
   window.HIPPO_COLORS = HIPPO_C;
@@ -49,7 +53,9 @@
   }
   ensureSprite();
 
-  function svgOpen(s) { return `<svg viewBox="0 0 100 100" width="${s}" height="${s}" aria-hidden="true">`; }
+  function svgOpen(s, vb) {
+    return `<svg viewBox="${vb || "0 0 100 100"}" width="${s}" height="${s}" aria-hidden="true">`;
+  }
 
   function bell() {
     // the loop sits high enough that its hole clears the dome (which starts at
@@ -65,18 +71,122 @@
       `<path d="M50,77 A8,8 0 0 1 50,93 Z" fill="${C.bellClapDark}"/>`;
   }
 
+  /* The Hippo is the project's own Illustrator drawing ("hippo.svg" /
+     "hippo-dead.svg"), kept as drawn. It is here rather than in the species
+     sprite because it must recolour per sibling, which a fixed <symbol>
+     cannot do: st0 -> main, st2/st3 -> dark, cream -> the snout.
+     Both drawings are wider than they are tall, so each is letterboxed into a
+     square viewBox and every icon keeps the same 1:1 footprint as a species. */
+  const HIPPO_VB      = "0 -22.4 176.64 176.64";   // art is 176.64 x 131.84
+  const HIPPO_DEAD_VB = "0 -40.96 176.64 176.64";  // art is 176.64 x 94.72
+
+  function hippoPal(which) {
+    return HIPPO_C[which] || { main: C.hippo, dark: C.hippoDark, cream: C.hippoCream };
+  }
+
   function hippo(which) {
-    const P = HIPPO_C[which] || { main: C.hippo, dark: C.hippoDark, cream: C.hippoCream };
-    return `<rect x="24" y="70" width="9" height="14" rx="4.5" fill="${P.dark}"/>` +
-      `<rect x="50" y="70" width="9" height="14" rx="4.5" fill="${P.dark}"/>` +
-      `<rect x="14" y="48" width="56" height="24" rx="12" fill="${P.main}"/>` +
-      `<circle cx="58" cy="39" r="4.5" fill="${P.dark}"/>` +
-      `<circle cx="70" cy="37" r="4.5" fill="${P.dark}"/>` +
-      `<circle cx="68" cy="52" r="15" fill="${P.main}"/>` +
-      `<ellipse cx="72" cy="58" rx="10" ry="7" fill="${P.cream}"/>` +
-      `<circle cx="69" cy="58" r="1.8" fill="${C.ink}"/>` +
-      `<circle cx="75" cy="58" r="1.8" fill="${C.ink}"/>` +
-      `<circle cx="63" cy="47" r="2.6" fill="${P.dark}"/>`;
+    const P = hippoPal(which);
+    // the legs carry classes so a caller can swing them (see #turnframe-runner);
+    // inert everywhere else, since nothing else styles them
+    return `<path class="leg a" fill="${P.dark}" d="M37.12,96h0c6.36,0,11.52,5.16,11.52,11.52v12.8c0,6.36-5.16,11.52-11.52,11.52h0c-6.36,0-11.52-5.16-11.52-11.52v-12.8c0-6.36,5.16-11.52,11.52-11.52Z"/>` +
+      `<path class="leg b" fill="${P.dark}" d="M103.68,96h0c6.36,0,11.52,5.16,11.52,11.52v12.8c0,6.36-5.16,11.52-11.52,11.52h0c-6.36,0-11.52-5.16-11.52-11.52v-12.8c0-6.36,5.16-11.52,11.52-11.52Z"/>` +
+      `<circle fill="${P.dark}" cx="112.64" cy="16.64" r="11.52"/>` +
+      `<circle fill="${P.dark}" cx="143.36" cy="11.52" r="11.52"/>` +
+      `<circle fill="${P.main}" cx="138.24" cy="49.92" r="38.4"/>` +
+      `<ellipse fill="${P.cream}" cx="148.48" cy="65.28" rx="25.6" ry="17.92"/>` +
+      `<circle fill="${C.ink}" cx="140.8" cy="65.28" r="4.61"/>` +
+      `<circle fill="${C.ink}" cx="156.16" cy="65.28" r="4.61"/>` +
+      `<circle fill="${P.dark}" cx="125.44" cy="37.12" r="6.66"/>` +
+      `<circle fill="${P.dark}" cx="163.77" cy="37.12" r="6.66"/>` +
+      `<path fill="${P.main}" d="M98.55,49.92c0-3.54.47-6.97,1.34-10.24H30.72C13.75,39.68,0,53.43,0,70.4s13.75,30.72,30.72,30.72h81.92c9.72,0,18.37-4.51,24-11.56-21.17-.84-38.09-18.26-38.09-39.64Z"/>`;
+  }
+
+  // Belly-up hippo with crossed-out eyes, for the bad-news verdicts.
+  function deadHippo(which) {
+    const P = hippoPal(which);
+    const x = `stroke="${C.ink}" stroke-linecap="round" stroke-miterlimit="10.24" stroke-width="4.61" fill="none"`;
+    return `<path fill="${P.dark}" d="M37.12,35.84h0c6.36,0,11.52-5.16,11.52-11.52v-12.8c0-6.36-5.16-11.52-11.52-11.52h0c-6.36,0-11.52,5.16-11.52,11.52v12.8c0,6.36,5.16,11.52,11.52,11.52Z"/>` +
+      `<path fill="${P.dark}" d="M103.68,35.84h0c6.36,0,11.52-5.16,11.52-11.52v-12.8c0-6.36-5.16-11.52-11.52-11.52h0c-6.36,0-11.52,5.16-11.52,11.52v12.8c0,6.36,5.16,11.52,11.52,11.52Z"/>` +
+      `<path fill="${P.main}" d="M30.72,30.72h70.41c-1.66,4.38-2.58,9.12-2.58,14.08,0,20.25,15.16,36.94,34.75,39.37-5.46,4.96-12.71,7.99-20.67,7.99H30.72c-16.97,0-30.72-13.75-30.72-30.72s13.75-30.72,30.72-30.72Z"/>` +
+      `<circle fill="${P.dark}" cx="112.64" cy="78.08" r="11.52"/>` +
+      `<circle fill="${P.dark}" cx="143.36" cy="83.2" r="11.52"/>` +
+      `<circle fill="${P.main}" cx="138.24" cy="44.8" r="38.4"/>` +
+      `<ellipse fill="${P.cream}" cx="148.48" cy="29.44" rx="25.6" ry="17.92"/>` +
+      `<path ${x} d="M119.3,63.74l12.29-12.29M119.3,51.46l12.29,12.29"/>` +
+      `<path ${x} d="M152.05,63.74l12.29-12.29M152.05,51.46l12.29,12.29"/>` +
+      `<circle fill="${C.ink}" cx="156.16" cy="29.44" r="4.61"/>` +
+      `<circle fill="${C.ink}" cx="140.8" cy="29.44" r="4.61"/>`;
+  }
+
+  // Three face-down cards fanned out, for the TAKE button. The face carries
+  // the same motif as the deck card back elsewhere in the app — cream card,
+  // magenta half-disc — so the button reads as "the deck", and the heavy ink
+  // outline keeps it legible at ~46px on the dark button.
+  function deckCard(x, y, rot) {
+    return `<g transform="translate(${x},${y}) rotate(${rot})">` +
+      `<rect x="-21" y="-30" width="42" height="60" rx="7" fill="${C.paper}" ` +
+        `stroke="${C.ink}" stroke-width="3.5" stroke-linejoin="round"/>` +
+      `<path d="M0,-15 A15,15 0 0 1 0,15 Z" fill="${C.hippo}"/>` +
+      `<circle cx="0" cy="0" r="4" fill="${C.paper}"/>` +
+      `</g>`;
+  }
+  function deck() {
+    // back to front, so the right-hand card sits on top like the reference
+    return deckCard(36, 56, -18) + deckCard(50, 50, -3) + deckCard(64, 54, 13);
+  }
+
+  /* Speaker icons, from the project's Illustrator export "sound icon.svg" —
+     the two states sit side by side in that one file, so each is lifted by
+     viewBox rather than being redrawn. Strokes take the project ink and the
+     mute cross the scheme red, in place of the export's #231f20/#ed1c24. */
+  const SOUND_VB      = "0 0 645 457.21";
+  const SOUND_MUTE_VB = "1293 0 650 457.21";
+  const SPEAKER_ON = "M137.22,165.4H43.53c-13,0-23.53,10.54-23.53,23.53v79.36c0,13,10.54,23.53,23.53,23.53h93.69c5.94,0,11.65,2.24,16,6.28l143.16,132.79c15.06,13.97,39.53,3.29,39.53-17.25V43.58c0-20.54-24.47-31.22-39.53-17.25l-143.16,132.79c-4.35,4.04-10.07,6.28-16,6.28Z";
+  const SPEAKER_OFF = "M1430.85,165.4h-93.69c-13,0-23.53,10.54-23.53,23.53v79.36c0,13,10.54,23.53,23.53,23.53h93.69c5.94,0,11.65,2.24,16,6.28l143.16,132.79c15.06,13.97,39.53,3.29,39.53-17.25V43.58c0-20.54-24.47-31.22-39.53-17.25l-143.16,132.79c-4.35,4.04-10.07,6.28-16,6.28Z";
+  const WAVES = [
+    "M550.82,63.44c9.74,8.97,18.78,18.96,26.98,29.9,29.97,39.96,46.47,90.43,46.47,142.14s-16.5,102.18-46.47,142.13c-8.38,11.17-17.63,21.35-27.61,30.47",
+    "M483.95,118.3c9.56,7.24,18.26,15.97,25.83,26.06,19,25.33,29.46,57.69,29.46,91.11s-10.46,65.78-29.46,91.11c-7.56,10.08-16.26,18.81-25.83,26.06",
+    "M411.68,178.78c23.48,0,42.52,25.38,42.52,56.69s-19.04,56.69-42.52,56.69",
+  ];
+  function soundIcon(muted, h) {
+    const H = h || 20;
+    const vb = muted ? SOUND_MUTE_VB : SOUND_VB;
+    const w = Math.round(H * (parseFloat(vb.split(" ")[2]) / 457.21));
+    const base = `stroke="${C.ink}" stroke-width="40" stroke-miterlimit="10" fill="none"`;
+    let inner;
+    if (muted) {
+      inner = `<path ${base} d="${SPEAKER_OFF}"/>` +
+        `<path stroke="${C.danger}" stroke-width="40" stroke-linecap="round" fill="none" ` +
+          `d="M1705.3,337.24 L1922.56,119.98 M1922.56,337.24 L1705.3,119.98"/>`;
+    } else {
+      inner = `<path ${base} d="${SPEAKER_ON}"/>` +
+        WAVES.map(d => `<path ${base} stroke-linecap="round" d="${d}"/>`).join("");
+    }
+    return `<svg viewBox="${vb}" width="${w}" height="${H}" aria-hidden="true">${inner}</svg>`;
+  }
+
+  /* Carrot, from the project's "carrot.svg" export. It is parked at the head of
+     the countdown ring — length 0 — which is exactly where the running hippo
+     ends up when the turn expires, so the ring reads as a chase. */
+  const CARROT = [
+    ["#F89822", "M3.75,400.57c7-37.69,19.05-84.33,40.52-135.35,23.9-56.81,52.21-101.78,76.58-134.91,2.44-3.83,17.18-26.13,45.35-30.63,16.37-2.61,29.56,2.01,35.62,4.61,11.47,3.02,27.32,8.53,44.28,18.97,17.79,10.95,30.23,23.3,38.18,32.5,3.78,4.91,13.61,19.02,14.66,39.77,1.05,20.74-7.29,35.76-10.55,41.03-30.5,62.83-65.38,105.16-93.51,133.28-37.34,37.33-101.04,87.85-101.04,87.85h0c-68.17,54.91-106.4,29.01-90.08-57.13Z"],
+    ["#F0D1AB", "M235.25,240.2c5.58,8.62-3.29,19.3-12.78,15.4-6.5-2.67-13.26-5.89-20.14-9.78-30.09-17.03-50.07-39.94-62.81-59.02-5.8-8.67,3.25-19.57,12.84-15.47,21.1,9.01,47.29,24.44,69.57,50.87,5.1,6.05,9.5,12.1,13.32,18Z"],
+    ["#F0D1AB", "M198.7,297.84c5.58,8.62-3.29,19.3-12.78,15.4-6.5-2.67-13.26-5.89-20.14-9.78-30.09-17.03-50.07-39.94-62.81-59.02-5.8-8.67,3.25-19.57,12.84-15.47,21.1,9.01,47.29,24.44,69.57,50.87,5.1,6.05,9.5,12.1,13.32,18Z"],
+    ["#F0D1AB", "M158.01,361.99c5.58,8.62-3.29,19.3-12.78,15.4-6.5-2.67-13.26-5.89-20.14-9.78-30.09-17.03-50.07-39.94-62.81-59.02-5.8-8.67,3.25-19.57,12.84-15.47,21.1,9.01,47.29,24.44,69.57,50.87,5.1,6.05,9.5,12.1,13.32,18Z"],
+  ];
+  // the three leaves are open strokes in the export, not filled shapes
+  const CARROT_TOPS = [
+    "M270.3,0c36.67,13.38,55.54,53.96,42.16,90.63-13.38,36.67-53.96,55.54-90.63,42.16",
+    "M206.77,117.79c-29.14-6.31-47.65-35.04-41.34-64.18,6.31-29.14,35.04-47.65,64.18-41.34",
+    "M288.89,175.32c-10.74-27.81,3.1-59.07,30.91-69.81,27.81-10.74,59.07,3.1,69.81,30.91",
+  ];
+  function carrot(h) {
+    const H = h || 26, W = Math.round(H * (389.61 / 486.55));
+    return `<svg viewBox="0 0 389.61 486.55" width="${W}" height="${H}" aria-hidden="true">` +
+      CARROT.map(([f, d]) => `<path fill="${f}" d="${d}"/>`).join("") +
+      CARROT_TOPS.map(d => `<path fill="none" stroke="${C.carrotTop}" stroke-width="24" ` +
+        `stroke-linecap="round" d="${d}"/>`).join("") +
+      `</svg>`;
   }
 
   function back() {
@@ -93,10 +203,13 @@
       return svgOpen(s) + `<use href="#an-${animal}" width="100" height="100"/></svg>`;
     }
     let inner = "";
-    if (animal === "bell") inner = bell();
-    else if (animal === "hippo") inner = hippo(variant);
+    let vb = "";
+    if (animal === "deck") inner = deck();
+    else if (animal === "bell") inner = bell();
+    else if (animal === "hippo") { inner = hippo(variant); vb = HIPPO_VB; }
+    else if (animal === "deadhippo") { inner = deadHippo(variant); vb = HIPPO_DEAD_VB; }
     else inner = back();
-    return svgOpen(s) + inner + `</svg>`;
+    return svgOpen(s, vb) + inner + `</svg>`;
   }
 
   function icon(animal, count, size) {
@@ -105,5 +218,5 @@
     return out + `</span>`;
   }
 
-  window.AnimalArt = { shape, icon, C };
+  window.AnimalArt = { shape, icon, soundIcon, carrot, C };
 })();
