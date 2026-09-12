@@ -28,6 +28,10 @@ function show(name) {
 // splash: floating pink pig, tap to jump in
 $('pig-splash').innerHTML = window.AnimalArt.shape('hippo', 180, 'bo');
 $('code-hippo').innerHTML = window.AnimalArt.shape('hippo', 40, 'bo');
+$('join-hippo').innerHTML = window.AnimalArt.shape('hippo', 46, 'bo');
+// the four order species, parked in the page's bottom-right corner as decoration
+$('join-fauna').innerHTML = ['toucan', 'zebra', 'crocodile', 'lion']
+  .map(a => window.AnimalArt.shape(a, 34)).join('');
 $('screen-splash').onclick = () => {
   const s = $('screen-splash');
   if (s.classList.contains('jump')) return;
@@ -76,7 +80,7 @@ function gruntSound() {
     o.connect(g).connect(c.destination); o.start(t); o.stop(t + 0.4);
   } catch (e) {}
 }
-function updateMuteBtn() { $('btn-mute').textContent = muted ? '🔕' : '🔔'; }
+function updateMuteBtn() { $('btn-mute').innerHTML = window.AnimalArt.soundIcon(muted, 20); }
 $('btn-mute').onclick = () => { muted = !muted; localStorage.setItem('as_mute', muted ? '1' : '0'); updateMuteBtn(); };
 
 // ---------- websocket ----------
@@ -249,7 +253,7 @@ const TOUR = [
     mock: `<div style="font-size:64px;filter:grayscale(1);opacity:.5">🔔</div><div style="font-size:40px">🚫</div>` },
   { t: '15-second turns',
     b: 'The frame around the active box drains clockwise from the top-right — red flicker under 5s. Timeout <b>auto-plays</b> for you, never a stall.',
-    mock: `<div style="width:150px;height:110px;border:4px solid #2E9E5B;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px">15s</div>` },
+    mock: `<div style="width:150px;height:110px;border:4px solid #89AB00;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px">15s</div>` },
   { t: 'Bots have your back',
     b: 'Leave mid-game and a 🤖 bot plays your seat fairly — rejoin anytime to take it back. Or start <b>Vs bots</b> to practice solo.',
     mock: `<div style="font-size:64px">🤖</div>` },
@@ -398,7 +402,10 @@ function openDrawModal() {
     d.className = 'stock' + (p.id === state.youId ? ' me' : '');
     let body;
     if (p.id === state.youId) {
-      body = `<div class="cd"><span class="ownhide">${window.AnimalArt.shape('monkey', 46)}</span></div>`;
+      // your own card reads as three unknowns in a chip, laid out exactly like
+      // everyone else's animals — same shape of information, contents withheld
+      body = `<div class="cd"><span class="halfchip ownhide"><span class="anicons">` +
+        `<span class="qmark">?</span>`.repeat(3) + `</span></span></div>`;
     } else {
       const card = p.stockCardId ? state.cards[p.stockCardId] : null;
       body = cardHalvesHTML(card);
@@ -467,7 +474,6 @@ function render() {
   }
   show('game');
   $('hud-round').textContent = 'R' + state.round + ' · next ⚡' + state.nextTokenValue;
-  $('hud-deck').textContent = '🂠 ' + state.deckCount;
   $('take-count').textContent = '🂠 ' + state.deckCount;
 
   // recover a pending draw lost to reload (DRAWN is only sent live once)
@@ -508,13 +514,26 @@ function render() {
   else $('modal-reveal').classList.add('hidden');
   if (state.phase === 'gameOver') { lastDealKey = ''; openGameOver(); }
   else $('modal-over').classList.add('hidden');
+
+  // Snapshot LAST: the reveal audit is built above and draws its own token
+  // chips, so taking this any earlier marked the new token as already seen
+  // and it never popped.
+  seenBefore.orders = new Set((state.orders || []).map(o => o.cardId));
+  state.players.forEach(p => { seenBefore.tokens[p.id] = (p.tokens || []).length; });
+  seenBefore.phase = state.phase;
 }
 
 function scoreStr(p) { return p.tokens && p.tokens.length ? p.tokens.join('+') + ' = ' + p.total : '0'; }
 // token chips inside the player's own box: one graphic per token + total
+// What the last render showed, so a change can be animated once and a plain
+// re-render (a tally update, someone reconnecting) stays still.
+const seenBefore = { orders: new Set(), tokens: {}, tally: {}, phase: null };
+
 function tokenChipsHTML(p) {
   if (!p.tokens || !p.tokens.length) return `<div class="tchips"></div>`;
-  return `<div class="tchips">` + p.tokens.map(t => `<span class="tchip">⚡${t}</span>`).join('') +
+  const had = seenBefore.tokens[p.id] || 0;
+  return `<div class="tchips">` + p.tokens.map((t, i) =>
+    `<span class="tchip${i >= had ? ' justwon' : ''}">⚡${t}</span>`).join('') +
     `<span class="ttotal">${p.total}</span></div>`;
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -580,6 +599,34 @@ function bellNote() {
   }, 'tapnote');
 }
 let dealTimers = [];
+// A riffle, not a shake: the deck splits into two packets, cards spring from
+// alternating packets and interleave into a pile between them, then the whole
+// thing squares back up into one deck. Driven by the Web Animations API so the
+// timing can be choreographed rather than approximated with nth-child delays.
+function buildShuffle(dw) {
+  dw.innerHTML = '';
+  const mk = cls => { const el = document.createElement('span'); el.className = cls; dw.appendChild(el); return el; };
+  const SPLIT = 46, TILT = 11, RUN = 1040;   // wide enough that the two halves read as two
+  [-1, 1].forEach(side => {
+    mk('dealcard packet').animate([
+      { transform: 'translate(0,0) rotate(0deg)' },
+      { transform: `translate(${side * SPLIT}px,0) rotate(${side * TILT}deg)`, offset: .20 },
+      { transform: `translate(${side * SPLIT}px,0) rotate(${side * TILT}deg)`, offset: .68 },
+      { transform: 'translate(0,0) rotate(0deg) scale(1.06)', offset: .88 },
+      { transform: 'translate(0,0) rotate(0deg) scale(1)' },
+    ], { duration: RUN, easing: 'cubic-bezier(.35,.8,.3,1)', fill: 'forwards' });
+  });
+  // cards fall from alternating sides and stack up in the middle
+  for (let i = 0; i < 10; i++) {
+    const side = i % 2 ? 1 : -1;
+    mk('dealcard flake').animate([
+      { transform: `translate(${side * 42}px,-7px) rotate(${side * 14}deg)`, opacity: 0 },
+      { transform: `translate(${side * 18}px,-4px) rotate(${side * 7}deg)`, opacity: 1, offset: .45 },
+      { transform: `translate(0px,${-7 + i * 1.5}px) rotate(0deg)`, opacity: 1 },
+    ], { duration: 250, delay: 230 + i * 40, easing: 'cubic-bezier(.3,.9,.35,1)', fill: 'both' });
+  }
+}
+
 function showDeal(n) {
   // phase 1 (~1s): the deck riffle-shuffles in the middle, seats stay empty;
   // phase 2: the shuffle group dissolves INTO flying cards, one per seat —
@@ -592,6 +639,7 @@ function showDeal(n) {
   $('deal-text').textContent = 'Shuffling…';
   const dw = document.querySelector('#modal-deal .dealwrap');
   dw.classList.remove('spent');
+  buildShuffle(dw);
   const fly = $('deal-fly');
   fly.innerHTML = '';
   const stocks = $('stocks');
@@ -678,7 +726,10 @@ function renderStocks() {
     d.className = 'stock' + (p.id === state.youId ? ' me' : '');
     let body;
     if (p.id === state.youId && state.phase === 'playing') {
-      body = `<div class="cd"><span class="ownhide">${window.AnimalArt.shape('monkey', 46)}</span></div>`;
+      // your own card reads as three unknowns in a chip, laid out exactly like
+      // everyone else's animals — same shape of information, contents withheld
+      body = `<div class="cd"><span class="halfchip ownhide"><span class="anicons">` +
+        `<span class="qmark">?</span>`.repeat(3) + `</span></span></div>`;
     } else {
       const card = p.stockCardId ? state.cards[p.stockCardId] : null;
       body = cardHalvesHTML(card);
@@ -705,7 +756,11 @@ function renderOrders(flipMode) {
 
 function renderOrdersInto(el, flipMode) {
   el.innerHTML = '';
-  if (!state.orders.length && !(state.hippoDiscards || []).length) { el.innerHTML = `<div class="hint">No orders yet — first player must take one.</div>`; return; }
+  if (!state.orders.length && !(state.hippoDiscards || []).length) {
+    el.innerHTML = `<div class="emptyboard">${window.AnimalArt.shape('hippo', 92, 'dozy')}` +
+      `<div class="hint">No orders yet — first player must take one.</div></div>`;
+    return;
+  }
   // napped hippos (drawn onto an empty board): public icons on the first rows
   const usedHippos = new Set();
   state.orders.forEach(o => (o.flippedBy || []).forEach(id => usedHippos.add(id)));
@@ -724,6 +779,9 @@ function renderOrdersInto(el, flipMode) {
   // (reveal only — the game-over sheet keeps its full veil)
   const res = state.phase === 'reveal' ? state.lastResolution : null;
   const judged = res ? new Set(res.checkedAnimal ? [res.checkedAnimal] : []) : null;
+  // the newest face-up order is what the bell judges, so it wears the frame
+  let liveIdx = -1;
+  state.orders.forEach((o, i) => { if (o.faceUp) liveIdx = i; });
   // newest round at the bottom: picked half full-size, unpicked half faded left
   state.orders.forEach((o, i) => {
     const row = document.createElement('div');
@@ -748,14 +806,13 @@ function renderOrdersInto(el, flipMode) {
       return `<span class="fmark" data-sib="${key || ''}" title="swapped by ${sib || 'hippo'}">${window.AnimalArt.shape('hippo', 24, key)}</span>`;
     }).join('');
     const marksHTML = marks ? `<div class="flipmarks">${marks}</div>` : '';
-    // an odd number of swaps trades the halves' places: the live animal
-    // glows on the left, the dead one shades on the right
-    if (flips.length % 2 === 1 && o.discarded) {
-      row.classList.add('swapped');
-      row.innerHTML = liveHTML + deadHTML + marksHTML;
-    } else {
-      row.innerHTML = deadHTML + liveHTML + marksHTML;
-    }
+    // The picked half always keeps the same column, swapped or not, so the
+    // live frame lines up down the whole board; the hippo marker at the row's
+    // end is what says a swap happened. (Trading the halves' places instead
+    // put the framed box on the left and 32px short of the board edge.)
+    if (flips.length % 2 === 1 && o.discarded) row.classList.add('swapped');
+    if (marks) row.classList.add('hasmarks');
+    row.innerHTML = deadHTML + liveHTML + marksHTML;
     if (flipMode && o.faceUp) {
       row.querySelector('.pick').onclick = () => {
         selHippoIdx = i;
@@ -768,6 +825,8 @@ function renderOrdersInto(el, flipMode) {
     row.querySelectorAll('.fmark').forEach(mk => {
       if (mk.dataset.sib) attachHippoNote(mk, mk.dataset.sib);
     });
+    if (el.id === 'orders' && !seenBefore.orders.has(o.cardId)) row.classList.add('justlanded');
+    if (el.id === 'orders' && state.phase === 'playing' && i === liveIdx) row.classList.add('live');
     el.appendChild(row);
   });
 }
@@ -777,8 +836,11 @@ function renderSideTally() {
   if (!state || state.phase === 'lobby') { el.innerHTML = ''; return; }
   const t = ordersTallyLocal();
   const lastFace = [...(state.orders || [])].reverse().find(o => o.faceUp);
-  el.innerHTML = ['toucan', 'zebra', 'crocodile', 'lion'].map(a =>
-    `<div class="strow${lastFace && lastFace.animal === a ? ' live' : ''}" title="${a} ordered">${window.AnimalArt.icon(a, 1, 22)}<b>${t[a] || 0}</b></div>`).join('');
+  el.innerHTML = ['toucan', 'zebra', 'crocodile', 'lion'].map(a => {
+    const moved = seenBefore.tally[a] !== undefined && seenBefore.tally[a] !== (t[a] || 0);
+    return `<div class="strow${lastFace && lastFace.animal === a ? ' live' : ''}${moved ? ' bump' : ''}" title="${a} ordered">${window.AnimalArt.icon(a, 1, 22)}<b>${t[a] || 0}</b></div>`;
+  }).join('');
+  ['toucan', 'zebra', 'crocodile', 'lion'].forEach(a => { seenBefore.tally[a] = t[a] || 0; });
 }
 
 function renderFlipbar(flipMode) {
@@ -917,8 +979,48 @@ function tickTimer() {
     void path.getBoundingClientRect();          // flush before re-arming
     path.style.transition = `stroke-dashoffset ${Math.max(0, left).toFixed(2)}s linear`;
     path.style.strokeDashoffset = L;
+    placeCarrot(path);
+    armRunner(frac, left);
   }
   ov.classList.toggle('urgent', left < 5);
+}
+
+// A hippo runs at the vanishing end of the countdown, so the ring reads as
+// something being chased rather than merely draining. With dasharray L and
+// dashoffset D the stroke covers [0, L-D], so its live end sits at L*frac and
+// travels back to 0 — the hippo follows that, hence keyPoints frac -> 0 and
+// auto-reverse to face the way it is going. Declarative on purpose: the same
+// reason the ring itself is one long transition, so it cannot judder with the
+// tick rate. A random sibling each turn keeps it from going stale.
+// The carrot sits at length 0 — the ring's own start corner, and the point the
+// runner reaches as the turn expires. Asking the path for the coordinate keeps
+// it on the corner for any table size, rather than guessing an offset.
+function placeCarrot(path) {
+  const g = $('turnframe-carrot');
+  if (!g) return;
+  let p;
+  try { p = path.getPointAtLength(0); } catch (e) { g.innerHTML = ''; return; }
+  const S = 26;
+  g.innerHTML = `<g transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})">` +
+    `<g class="bob"><g transform="translate(${-S * 0.4},${-S / 2})">` +
+    window.AnimalArt.carrot(S) + '</g></g></g>';
+}
+
+const RUNNERS = ['bo', 'pip', 'dozy'];
+function armRunner(frac, left) {
+  const g = $('turnframe-runner');
+  if (!g) return;
+  if (left <= 0.2 || frac <= 0) { g.innerHTML = ''; return; }
+  const S = 24, who = RUNNERS[Math.floor(Math.random() * RUNNERS.length)];
+  // Mirrored on Y: travel runs anticlockwise, so the tangent puts the hippo's
+  // feet on the outside of the ring. Flipping turns them in towards the table.
+  g.innerHTML = `<g transform="translate(${-S / 2},${S / 2}) scale(1,-1)">` +
+    window.AnimalArt.shape('hippo', S, who) + '</g>' +
+    `<animateMotion dur="${left.toFixed(2)}s" fill="freeze" calcMode="linear" ` +
+      `keyPoints="${frac.toFixed(4)};0" keyTimes="0;1" rotate="auto-reverse">` +
+      `<mpath href="#turnframe-path" xlink:href="#turnframe-path"/></animateMotion>`;
+  const am = g.querySelector('animateMotion');
+  if (am && am.beginElement) { try { am.beginElement(); } catch (e) { /* no SMIL */ } }
 }
 
 // Countdown path: walk the rounded rect clockwise from the top-right corner
@@ -1004,24 +1106,29 @@ function openReveal(isNew) {
   // Viewer-aware headline: a ringer who caught bad orders gets a winner
   // message, not a scolding. The blamed player gets told plainly.
   let head, color = '#FF3B5C';
+  // a belly-up hippo marks the bad-news headlines
+  const rip = AnimalArt.icon('deadhippo', 1, 26);
   if (r.oversold) {
-    if (iAmRinger) { head = '🎉 You caught them!'; color = '#2E9E5B'; }
-    else if (iAmBlamed) { head = '😡 Caught out!'; }
-    else { head = `😡 Bad orders — ${nameOf(r.blamedId)} pays!`; }
+    if (iAmRinger) { head = '🎉 You caught them!'; color = '#89AB00'; }
+    else if (iAmBlamed) { head = rip + 'Caught out!'; }
+    else { head = rip + `Bad orders — ${escapeHtml(nameOf(r.blamedId))} pays!`; }
   } else {
-    if (iAmRinger) { head = '😡 False alarm!'; }
-    else { head = `😡 ${nameOf(r.ringerId)} rang for nothing!`; }
+    if (iAmRinger) { head = rip + 'False alarm!'; }
+    else { head = rip + `${escapeHtml(nameOf(r.ringerId))} rang for nothing!`; }
   }
-  $('rv-verdict').textContent = head;
+  $('rv-verdict').innerHTML = head;
   $('rv-verdict').style.color = color;
   // the audit shows everyone's revealed stocks (3 per row, full width);
   // the judged animal stays bright, every other half is dimmed
   const judgedAudit = new Set(r.checkedAnimal ? [r.checkedAnimal] : []);
   const dim = judgedAudit.size ? judgedAudit : null;
-  const tiles = state.players.map(p => {
+  const tiles = state.players.map((p, i) => {
     const card = p.stockCardId ? state.cards[p.stockCardId] : null;
     const hip = card && card.hippo ? ` data-hippo="${card.hippo}"` : '';
-    return `<div class="stock"${hip}><div class="nm">${escapeHtml(p.name)}${aiMark(p)}${p.id === state.youId ? ' (you)' : ''}</div>` +
+    // stagger the turn-over so the table reads left to right, not all at once
+    const cls = first ? 'stock flipin' : 'stock';
+    const delay = first ? ` style="animation-delay:${i * 90}ms"` : '';
+    return `<div class="${cls}"${delay}${hip}><div class="nm">${escapeHtml(p.name)}${aiMark(p)}${p.id === state.youId ? ' (you)' : ''}</div>` +
       cardHalvesHTML(card, dim, 16) + tokenChipsHTML(p) + `</div>`;
   });
   if (state.dummyStockCardId && state.cards[state.dummyStockCardId]) {
@@ -1366,5 +1473,6 @@ try {
 
 // ---------- boot ----------
 $('btn-ring').innerHTML = window.AnimalArt.shape('bell', 44);
+document.querySelector('#btn-take .deckfan').innerHTML = window.AnimalArt.shape('deck', 56);
 paintBuildTag();
 connect();

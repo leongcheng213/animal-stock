@@ -12,13 +12,15 @@
 
   <!-- turn countdown frame: SVG path walking the rounded rect, round caps -->
   <div id="turnframe" class="hidden">
-    <svg id="turnframe-svg"><path id="turnframe-path" d=""/></svg>
+    <svg id="turnframe-svg"><path id="turnframe-path" d=""/><g id="turnframe-carrot"></g><g id="turnframe-runner"></g></svg>
   </div>
 
   <!-- connection dot -->
   <div id="conn" class="conn offline" title="connection">●</div>
 
   <!-- ============ SPLASH ============ -->
+  <span class="cornerfauna" id="join-fauna" aria-hidden="true"></span>
+
   <section id="screen-splash" class="screen splash active">
     <div id="pig-splash"></div>
     <p class="tap-hint">tap to play</p>
@@ -26,15 +28,18 @@
 
   <!-- ============ JOIN ============ -->
   <section id="screen-join" class="screen">
-    <div class="logo-row">
-      <span class="logo-hippo" aria-hidden="true">🦛</span>
-      <h1>Animal Stock</h1>
+    <div class="hero">
+      <div class="logo-row">
+        <span class="logo-hippo" id="join-hippo" aria-hidden="true"></span>
+        <h1>Animal Stock</h1>
+      </div>
+      <p class="tagline">Hidden stock. Dodgy orders. One furious Hippo manager.<br>
+        <span class="credit">After <i>Durian</i> (Uesugi / Oink Games). Fan reimplementation.</span></p>
     </div>
-    <p class="tagline">Hidden stock. Dodgy orders. One furious Hippo manager.<br>
-      <span class="credit">After <i>Durian</i> (Uesugi / Oink Games). Fan reimplementation.</span></p>
 
-    <label class="fld"><span>Your name</span>
-      <input id="in-name" maxlength="12" placeholder="e.g. Mai" autocomplete="nickname">
+    <label class="fld">
+      <input id="in-name" maxlength="12" placeholder="Your name" aria-label="Your name"
+        autocomplete="nickname">
     </label>
 
     <div class="segrow" id="play-tabs">
@@ -42,6 +47,7 @@
       <button id="tab-bots" class="seg">🤖 Vs bots</button>
     </div>
 
+    <div id="play-panels">
     <div id="panel-friends">
       <button id="btn-create" class="btn primary big">Create room</button>
       <button id="btn-join" class="btn big">Join room</button>
@@ -58,6 +64,7 @@
       </div>
       <p class="hint" id="bots-hint">You + 2 bots · fills instantly, plays immediately</p>
       <button id="btn-start-bots" class="btn primary big">Start vs bots</button>
+    </div>
     </div>
 
     <button id="btn-walk" class="btn primary big">▶ How to play</button>
@@ -97,7 +104,6 @@
       <div class="hud-top">
         <div><span id="hud-round" class="pill">R1</span></div>
         <div class="hud-right">
-          <span id="hud-deck" class="pill" title="cards left in deck">🂠 37</span>
           <button id="btn-mute" class="iconbtn" title="sound on/off">🔔</button>
           <button id="btn-exit" class="iconbtn" title="exit game">✕</button>
         </div>
@@ -120,7 +126,7 @@
         <button id="btn-flip-go" class="btn danger">Flip!</button>
       </div>
 
-      <button id="btn-take" class="takebtn"><span class="deckmini"></span><span>TAKE</span><span id="take-count" class="takecount">🂠 37</span></button>
+      <button id="btn-take" class="takebtn"><span class="deckfan"></span><span>TAKE</span><span id="take-count" class="takecount">🂠 37</span></button>
     </div>
   </section>
 </div>
@@ -182,9 +188,7 @@
 <div id="modal-deal" class="modal center ghost hidden">
   <div id="deal-fly"></div>
   <div class="sheet pop deal">
-    <div class="dealwrap">
-      <span class="dealcard"></span><span class="dealcard"></span><span class="dealcard"></span><span class="dealcard"></span><span class="dealcard"></span>
-    </div>
+    <div class="dealwrap"></div>
     <p id="deal-text">Shuffling…</p>
   </div>
 </div>
@@ -250,7 +254,7 @@
 </div>
 
 <!-- bump ?v= every time client JS changes so phones refetch it -->
-<script src="animals.js?v=19"></script>
-<script type="module" src="app.js?v=19"></script>
+<script src="animals.js?v=38"></script>
+<script type="module" src="app.js?v=38"></script>
 </body>
 </html>

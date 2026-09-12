@@ -1,9 +1,13 @@
 :root{
   --bg:#FAF6EF; --ink:#22303C; --muted:#8A7F70; --card:#FFFDF6;
-  --accent:#FF3B5C; --good:#2E9E5B; --gold:#C9A227;
+  --accent:#FF3B5C; --good:#89AB00;--danger:#FF4040; --gold:#C9A227;
   --btn-h:56px; --rad:14px;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+/* form controls default to the UA font (Arial), which left every button in a
+   different typeface from the rest of the app — and from the name field that
+   is meant to match them */
+button,input,select,textarea{font-family:inherit;}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;}
 #app{max-width:480px;margin:0 auto;min-height:100dvh;position:relative;padding-bottom:24px;}
@@ -31,8 +35,20 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
    Explicit pixel geometry — no dashes, gradients or angle tricks. */
 #turnframe{position:fixed;z-index:45;pointer-events:none;}
 #turnframe svg{width:100%;height:100%;display:block;overflow:visible;}
-#turnframe path{fill:none;stroke:#2E9E5B;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;}
-#turnframe.urgent path{stroke:#FF3B5C;}
+/* Scoped to the ring's own path: a bare `#turnframe path` also repainted
+   every path of the hippo running along it, flattening it to a green line. */
+#turnframe-path{fill:none;stroke:var(--good);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;}
+#turnframe.urgent #turnframe-path{stroke:var(--danger);}
+/* the runner is decoration, unlike the ring itself, so it goes under
+   reduced motion while the countdown stays */
+@media (prefers-reduced-motion:reduce){#turnframe-runner{display:none;}}
+/* Walk cycle: each leg swings about its own top edge, half a period apart.
+   fill-box is what makes transform-origin mean the leg's own box rather than
+   the whole SVG's user space. */
+#turnframe-runner .leg{transform-box:fill-box;transform-origin:50% 0;
+  animation:legswing .34s ease-in-out infinite;}
+#turnframe-runner .leg.b{animation-delay:-.17s;}
+@keyframes legswing{0%,100%{transform:rotate(16deg);}50%{transform:rotate(-16deg);}}
 #turnframe.urgent{animation:urgentblink .55s linear infinite;}
 .conn.online{color:var(--good);} .conn.offline{color:var(--accent);}
 
@@ -125,7 +141,12 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 .stock.me{border-style:dashed;opacity:.9;}
 .stock .nm{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .stock .cd{display:flex;justify-content:center;gap:2px;min-height:52px;flex:1;align-items:center;flex-wrap:wrap;}
-.ownhide{line-height:0;display:inline-block;}
+.ownhide{line-height:0;display:inline-flex;}
+/* sized to match an animal icon so the row keeps the same rhythm as a real
+   card, and kept on one line — three unknowns wrapping 2+1 read as a mistake */
+.ownhide .anicons{flex-wrap:nowrap;}
+.qmark{display:inline-flex;align-items:center;justify-content:center;width:24px;height:26px;
+  font-size:21px;font-weight:900;line-height:1;color:#B9AE99;}
 .halfchip{border-radius:8px;padding:2px 4px;margin:1px;background:#F5EEDF;}
 .halfchip{display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .halfchip .anicons{display:inline-flex;gap:1px;align-items:center;justify-content:center;}
@@ -135,11 +156,16 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
    calculation looked blank. Keep the others readable and mark the judged ones
    positively instead. */
 .halfchip.dimhalf{opacity:.62;filter:grayscale(.3);}
-.halfchip.judgedhalf{background:#E4F1E9;box-shadow:inset 0 0 0 2px #2E9E5B;}
+.halfchip.judgedhalf{background:#F0F3DC;box-shadow:inset 0 0 0 2px var(--good);}
 .orders{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:70px;}
 .orders.drawlist{display:flex;flex-direction:column;gap:8px;align-items:center;}
 /* order history: one vertical middle column — picked half full, unpicked faded left */
-.orders.onfelt{display:flex;flex-direction:column;gap:8px;align-items:center;}.orders.onfelt .orow,.orders.drawlist .orow{display:flex;gap:8px;align-items:stretch;width:min(340px,100%);max-width:100%;}
+.orders.onfelt{display:flex;flex-direction:column;gap:8px;align-items:center;}
+.orders.onfelt .orow,.orders.drawlist .orow{display:flex;gap:8px;align-items:stretch;max-width:100%;}
+/* on the felt the row spans the whole board, so its frame lines up with the
+   tally, the stocks row and the TAKE button; the draw list keeps the cap */
+.orders.onfelt .orow{width:100%;}
+.orders.drawlist .orow{width:min(340px,100%);}
 /* centre the artwork in the cell properly: vertical-align:middle sits on the
    text baseline, which left icons a few px high in every row */
 .orow .disc{flex:0 0 92px;min-width:0;opacity:.5;background:rgba(255,253,246,.9);
@@ -157,14 +183,29 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 /* napped hippos (drawn onto an empty board): public icons, first rows */
 .orow .pick.nap{flex:1;padding:4px 18px;cursor:pointer;text-align:center;}
 /* a swapped row trades places (live left, dead right) with usual box looks */
-.orow .flipmarks{flex:0 0 auto;display:flex;flex-direction:column;gap:2px;justify-content:center;}
+/* the swap markers ride over the picked half's right end rather than
+   taking a column of their own — a marker column made every row that had
+   one 32px narrower than its neighbours, so the frames stepped in and out */
+.orow{position:relative;}
+.orow .flipmarks{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:2px;justify-content:center;pointer-events:none;}
+.orow .flipmarks .fmark{pointer-events:auto;}
+.orow.hasmarks .pick{padding-right:32px;}
 .orow .fmark{display:block;cursor:pointer;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));}
 /* collapsible audit: hide details to free the board behind */
 .audit-head{display:flex;gap:8px;align-items:center;justify-content:space-between;}
 .audit-head h2{margin:0;flex:1;}
 #modal-reveal.mini #rv-tally,#modal-reveal.mini #rv-blame{display:none;}
 /* reveal audit: judged animal bright, the rest dimmed */
-.orow.judged > .pick{border-color:#2E9E5B;box-shadow:0 0 10px rgba(46,158,91,.55);}
+.orow.judged > .pick{border-color:var(--good);box-shadow:0 0 10px rgba(137,171,0,.55);}
+/* mid-round, the newest order is the one the bell would judge — frame it the
+   same way its column is framed in the tally */
+/* The live frame's ring must be INSET. As an outer ring (0 0 0 2px) it painted
+   2px beyond the layout box on every side, so the framed row sat proud of the
+   tally and stood taller than the dashed half beside it -- and no amount of
+   getBoundingClientRect could see it, since that never includes a shadow.
+   Inset keeps the same 4px of green weight strictly inside the aligned box. */
+.orow.live > .pick{border-color:var(--good);box-shadow:inset 0 0 0 2px var(--good);}
 .orow.dimmed{opacity:.45;}
 #hippo-sub.big{font-size:22px;font-weight:800;color:var(--ink);}
 /* tally bar under the token track: always visible, never overlapping */
@@ -176,7 +217,7 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 .strow{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:5px;color:#fff;font-size:14px;font-weight:800;background:rgba(34,48,60,.88);border-radius:10px;padding:4px 6px;}
 /* the column the bell would judge: a white chip with a green frame, so it
    reads as the live one both by fill and by outline */
-.strow.live{background:var(--card);color:var(--ink);box-shadow:0 0 0 2px #2E9E5B;}
+.strow.live{background:var(--card);color:var(--ink);box-shadow:0 0 0 2px var(--good);}
 /* hippo flip-select: only the clicked row is marked — its right box takes
    the usual shaded+dashed dead look (with a red frame); left stays as-is */
 .orow.flipcand .pick{cursor:pointer;}
@@ -187,12 +228,14 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 .flipbar .btn{width:auto;min-height:48px;padding:8px 20px;}
 .flipbar .btn:disabled{opacity:.4;}
 .orders.onfelt .order{background:rgba(255,253,246,.95);}
-.order{background:var(--card);border:2px solid #2E9E5B33;border-radius:12px;padding:6px;text-align:center;position:relative;}
+.order{background:var(--card);border:2px solid #89AB0033;border-radius:12px;padding:6px;text-align:center;position:relative;}
 .order.down{opacity:.5;filter:grayscale(1);border-color:#ccc;}
 .order .who{font-size:10px;color:var(--muted);}
 .order.cancelled-tag{position:absolute;top:2px;right:4px;font-size:12px;}
 .anicons svg{vertical-align:middle;max-width:100%;height:auto;}
 .anicons{display:inline-flex;flex-wrap:wrap;justify-content:center;gap:1px;align-items:center;max-width:100%;}
+/* the belly-up hippo on a verdict headline sits on the text baseline */
+#rv-verdict .anicons{vertical-align:-.24em;margin-right:.16em;}
 
 /* graphic take button: a shaded stack of cards, bottom of the table */
 .takebtn{margin:10px auto 0;width:min(330px,88%);min-height:70px;border:0;border-radius:14px;
@@ -201,6 +244,11 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
   box-shadow:5px 5px 0 #2b3542,10px 10px 0 rgba(34,48,60,.22);}
 .takebtn:active{transform:translate(2px,2px);box-shadow:3px 3px 0 #2b3542;}
 .takebtn:disabled{opacity:.45;}
+/* the fanned deck on the TAKE button: the cards carry their own ink outline,
+   so they only need a soft drop shadow to lift off the dark button */
+.deckfan{flex:none;line-height:0;display:block;
+  filter:drop-shadow(1px 2px 0 rgba(0,0,0,.28));}
+.takebtn:disabled .deckfan{filter:none;}
 .deckmini{width:32px;height:44px;border-radius:7px;background:#F1E4C8;position:relative;flex:none;
   box-shadow:2px 2px 0 rgba(0,0,0,.3);}
 .deckmini::before{content:'';position:absolute;top:6px;bottom:6px;left:50%;width:50%;
@@ -237,25 +285,23 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 #modal-deal .sheet p{color:#fff;font-weight:800;font-size:19px;text-shadow:0 2px 4px rgba(0,0,0,.5);}
 #deal-fly{position:fixed;inset:0;pointer-events:none;z-index:1;}
 #deal-fly .dealcard{position:absolute;opacity:0;animation:none;margin:0;}
-.dealwrap{display:flex;gap:8px;justify-content:center;margin-bottom:6px;
+/* the shuffle stage: cards are absolutely placed and moved by the riffle
+   choreography in buildShuffle(), so this just holds the space */
+.dealwrap{position:relative;width:190px;height:88px;margin:0 auto 6px;
   transition:opacity .25s, transform .25s;}
 #modal-deal .dealwrap.spent{opacity:0;transform:scale(.65);}
-.dealcard{width:44px;height:62px;border-radius:8px;background:#F1E4C8;position:relative;flex:none;
-  box-shadow:2px 2px 0 rgba(0,0,0,.35);animation:riffleL 1s ease-in-out infinite;}
+.dealcard{position:absolute;left:50%;top:50%;width:44px;height:62px;margin:-31px 0 0 -22px;
+  border-radius:8px;background:#F1E4C8;box-shadow:2px 2px 0 rgba(0,0,0,.35);}
+.dealcard.flake{width:38px;height:54px;margin:-27px 0 0 -19px;
+  box-shadow:1px 1px 0 rgba(0,0,0,.28);}
 .dealcard::before{content:'';position:absolute;top:8px;bottom:8px;left:50%;width:50%;
   border-radius:0 20px 20px 0;background:#FF3B5C;}
-.dealwrap .dealcard:nth-child(1){animation-delay:0s;}
-.dealwrap .dealcard:nth-child(2){animation-delay:.12s;animation-name:riffleR;}
-.dealwrap .dealcard:nth-child(3){animation-delay:.24s;}
-.dealwrap .dealcard:nth-child(4){animation-delay:.36s;animation-name:riffleR;}
-.dealwrap .dealcard:nth-child(5){animation-delay:.48s;}
-/* riffle: odd/even cards weave across each other like a real shuffle */
-@keyframes riffleL{0%,100%{transform:translateX(9px) rotate(5deg);}50%{transform:translateX(-30px) rotate(-11deg);}}
-@keyframes riffleR{0%,100%{transform:translateX(-9px) rotate(-5deg);}50%{transform:translateX(30px) rotate(11deg);}}
 /* seats stay empty until their card lands, then pop in with it */
 #stocks.dealing .stock{opacity:0;transform:scale(.55);}
-#stocks .stock.landed{animation:landpop .32s ease-out;}
-@keyframes landpop{from{transform:scale(.4);opacity:0;}}
+#stocks.dealing .stock.landed{opacity:1;transform:none;}
+#stocks .stock.landed{animation:landpop .38s cubic-bezier(.2,1.45,.4,1);}
+@keyframes landpop{from{transform:scale(.35);opacity:0;}
+  60%{transform:scale(1.08);opacity:1;}}
 .stock.hippo{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;}
 .sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;
   padding:18px 16px calc(20px + env(safe-area-inset-bottom));max-height:92dvh;overflow:auto;}
@@ -299,7 +345,7 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 #rv-tally .cd{flex-wrap:nowrap;gap:4px;}
 .trow{background:var(--card);border:2px solid #EFE7D6;border-radius:10px;padding:8px;font-size:14px;}
 .trow.bad{border-color:var(--accent);}
-.trow.checked{border-color:var(--good);box-shadow:0 0 0 2px #2E9E5B55;}
+.trow.checked{border-color:var(--good);box-shadow:0 0 0 2px #89AB0055;}
 #rv-blame{font-size:16px;font-weight:800;margin:6px 0;}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:12px;z-index:99;font-size:15px;max-width:90vw;text-align:center;}
@@ -377,3 +423,116 @@ body.in-game #app{height:100dvh;min-height:0;padding-bottom:0;overflow:hidden;}
 .tour-box::-webkit-scrollbar-thumb{background:rgba(90,70,40,.26);border-radius:99px;}
 #table-wrap > #orders::-webkit-scrollbar-thumb:hover,.sheet::-webkit-scrollbar-thumb:hover,
 .tour-box::-webkit-scrollbar-thumb:hover{background:rgba(90,70,40,.42);}
+
+/* ============================ decoration ============================ */
+/* Paper grain behind everything: one cheap repeating gradient, no assets. */
+body:not(.in-game){background-color:#E7D8BC;
+  background-image:radial-gradient(rgba(34,48,60,.07) 1.5px,transparent 1.5px);
+  background-size:15px 15px;}
+body.in-game{background-image:radial-gradient(rgba(34,48,60,.05) 1px,transparent 1px);
+  background-size:22px 22px;}
+
+/* The table reads as felt: a woven diagonal texture, a soft vignette so the
+   middle sits forward, and a stitched inner border like a card table. */
+#table-wrap{background-image:
+  repeating-linear-gradient(45deg,rgba(255,255,255,.045) 0 7px,transparent 7px 14px),
+  radial-gradient(120% 90% at 50% 40%,rgba(255,255,255,.10),transparent 70%);}
+#table-wrap::after{content:'';position:absolute;inset:6px;border-radius:13px;
+  border:2px dashed rgba(120,90,40,.18);pointer-events:none;}
+
+/* An empty board is a big blank rectangle; park a faded Hippo in it. */
+.emptyboard{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;padding:18px 0;}
+.emptyboard svg{opacity:.13;filter:grayscale(.35);}
+
+/* ============================ transitions ============================ */
+/* Screens arrive rather than cut. */
+.screen.active{animation:screenIn .3s ease-out;}
+@keyframes screenIn{from{opacity:0;transform:translateY(10px);}}
+
+/* A promise lands on the board from the deck side and settles. */
+.orow.justlanded{animation:orderIn .36s cubic-bezier(.2,1.3,.4,1);}
+/* Rise, don't slide-and-shrink: the old translateX(22px) scale(.96) drew the
+   row 4px narrow and 30px off-centre for its first 300ms, pushing its right
+   edge 13px past the board. On the row wearing the live frame that read as a
+   misaligned box. A vertical rise cannot disturb horizontal alignment. */
+@keyframes orderIn{from{opacity:0;transform:translateY(7px);}}
+
+/* A token is the thing everyone is trying to avoid — let it land hard. */
+.tchip.justwon{animation:tokenPop .45s cubic-bezier(.2,1.5,.4,1);}
+@keyframes tokenPop{from{transform:scale(.2) rotate(-14deg);opacity:0;}
+  60%{transform:scale(1.2) rotate(3deg);}}
+
+/* A column that just changed nudges, so a count going up is noticed. */
+.strow.bump{animation:tallyBump .34s ease-out;}
+@keyframes tallyBump{35%{transform:translateY(-4px) scale(1.07);}}
+
+/* The verdict sheet rises; it keeps its own -50% X centring. */
+#modal-reveal .sheet{animation:sheetUp .36s cubic-bezier(.2,1.15,.4,1);}
+@keyframes sheetUp{from{transform:translate(-50%,26px);opacity:0;}}
+
+/* Stocks turn over at the reveal, staggered down the row. */
+.stock.flipin .cd{animation:cardFlip .5s ease-out backwards;}
+@keyframes cardFlip{from{transform:rotateY(85deg) scale(.9);opacity:.2;}}
+
+/* Respect a reduced-motion preference: kill the decorative movement and the
+   idle loops. The countdown ring is deliberately NOT included — it carries
+   information (how long is left), so it must keep draining. */
+@media (prefers-reduced-motion: reduce){
+  #pig-splash,.tap-hint,#table-wrap > .bellbtn:not(:disabled){animation:none;}
+  .screen.active,.orow.justlanded,.tchip.justwon,.strow.bump,
+  #modal-reveal .sheet,.stock.landed,.stock.flipin .cd,.pop-in{animation:none;}
+}
+
+/* ======================= lobby: the front door =======================
+   The two play panels are stacked in one grid cell rather than shown and
+   hidden in flow, so the block is always as tall as the taller of them and
+   "How to play" cannot shift when the tabs are switched. Keeping the hidden
+   panel laid out (visibility, not display) is what holds that height. */
+#play-panels{display:grid;margin-top:14px;}
+#play-panels > div{grid-area:1/1;}
+#play-panels > div.hidden{display:block !important;visibility:hidden;pointer-events:none;}
+#panel-friends{display:flex;flex-direction:column;gap:12px;}
+#btn-walk{margin-top:22px;}
+
+/* a felt card for the title, matching the table the game is played on */
+.hero{position:relative;margin:6px 0 18px;padding:16px 16px 18px;
+  background:rgba(255,253,246,.28);border:3px solid #D8C9A8;border-radius:22px;
+  box-shadow:0 5px 0 #D3C3A0;}
+.hero .logo-row{margin:0 0 8px;position:relative;}
+.hero h1{font-size:33px;letter-spacing:-.4px;}
+.hero .tagline{margin:0;color:#6F6354;position:relative;}
+.logo-hippo{display:inline-block;line-height:0;transform:rotate(-7deg);}
+/* the herd sits in the corner of the page, behind everything */
+.cornerfauna{position:fixed;right:10px;bottom:8px;z-index:0;display:flex;gap:4px;
+  align-items:flex-end;opacity:.4;pointer-events:none;}
+body.in-game .cornerfauna{display:none;}
+.screen{position:relative;z-index:1;}
+
+/* chunky buttons: a hard drop, and a real press that travels */
+#screen-join .btn,#screen-code .btn{border-radius:16px;
+  box-shadow:0 4px 0 #DCD1BB;transition:transform .06s,box-shadow .06s;}
+#screen-join .btn.primary,#screen-code .btn.primary{box-shadow:0 4px 0 #0F1A22;}
+#screen-join .btn:active,#screen-code .btn:active{transform:translateY(4px);box-shadow:0 0 0 #0F1A22;}
+#screen-join .btn:disabled{box-shadow:0 4px 0 #DCD1BB;}
+#screen-join .seg{border-radius:14px;box-shadow:0 3px 0 #E5DCCB;
+  transition:transform .06s,box-shadow .06s;}
+#screen-join .seg:active{transform:translateY(3px);box-shadow:0 0 0 #E5DCCB;}
+.seg.sel{background:#F3F6E2;}
+#screen-join .seg.sel{box-shadow:0 3px 0 var(--good);}
+
+/* The name field carries its own label as a placeholder, so the typed value and
+   the prompt must be the same type — otherwise the field jumps as you type.
+   Both take the "How to play" button's weight and size. */
+.fld{margin:12px 0;}
+#in-name{font-size:19px;font-weight:700;font-family:inherit;letter-spacing:0;
+  background:var(--card);}
+#in-name::placeholder{font-size:19px;font-weight:700;font-family:inherit;
+  color:#B3A996;opacity:1;}
+
+/* the carrot hovers just off the corner it is pinned to; the bob lives on its
+   own <g> because a CSS transform would replace the attribute that centres it */
+#turnframe-carrot .bob{animation:carrotbob 2.4s ease-in-out infinite;}
+@keyframes carrotbob{0%,100%{transform:translateY(0) rotate(0deg);}
+  50%{transform:translateY(-4px) rotate(-7deg);}}
+@media (prefers-reduced-motion:reduce){#turnframe-carrot .bob{animation:none;}}
