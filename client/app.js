@@ -770,7 +770,11 @@ function renderOrdersInto(el, flipMode) {
     if (!hc || !hc.hippo) return;
     const d = document.createElement('div');
     d.className = 'orow naprow';
-    d.innerHTML = `<div class="pick nap" title="napped hippo — no effect">${window.AnimalArt.shape('hippo', 30, hc.hippo)}</div>`;
+    // same skeleton as every other row, so a napped Hippo's box matches the
+    // picked halves below it instead of running the whole board's width
+    d.innerHTML = `<div class="disc empty"></div>` +
+      `<div class="pick nap" title="napped hippo — no effect">${window.AnimalArt.shape('hippo', 30, hc.hippo)}</div>` +
+      `<div class="flipmarks"></div>`;
     attachHippoNote(d.querySelector('.pick'), hc.hippo);
     el.appendChild(d);
   });
@@ -805,13 +809,15 @@ function renderOrdersInto(el, flipMode) {
       const sib = key ? key.toUpperCase() : '';
       return `<span class="fmark" data-sib="${key || ''}" title="swapped by ${sib || 'hippo'}">${window.AnimalArt.shape('hippo', 24, key)}</span>`;
     }).join('');
-    const marksHTML = marks ? `<div class="flipmarks">${marks}</div>` : '';
+    // The marker column is rendered on EVERY row, empty or not. Reserving it
+    // is what keeps every picked half the same width, so the animals inside
+    // them share one centre line down the board; a gutter that appeared only
+    // on rows that had a Hippo shifted those rows' icons off that line.
+    const marksHTML = `<div class="flipmarks">${marks}</div>`;
     // The picked half always keeps the same column, swapped or not, so the
-    // live frame lines up down the whole board; the hippo marker at the row's
-    // end is what says a swap happened. (Trading the halves' places instead
-    // put the framed box on the left and 32px short of the board edge.)
+    // live frame lines up down the whole board; the hippo marker beside the
+    // row is what says a swap happened.
     if (flips.length % 2 === 1 && o.discarded) row.classList.add('swapped');
-    if (marks) row.classList.add('hasmarks');
     row.innerHTML = deadHTML + liveHTML + marksHTML;
     if (flipMode && o.faceUp) {
       row.querySelector('.pick').onclick = () => {
